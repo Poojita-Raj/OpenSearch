@@ -32,6 +32,9 @@
 
 package org.opensearch.search.profile;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /** Helps measure how much time is spent running some methods.
  *  The {@link #start()} and {@link #stop()} methods should typically be called
  *  in a try/finally clause with {@link #start()} being called right before the
@@ -48,6 +51,7 @@ package org.opensearch.search.profile;
  */
 public class Timer {
 
+    private static final Logger logger = LogManager.getLogger(Timer.class);
     private boolean doTiming;
     private long timing, count, lastCount, start;
 
@@ -92,6 +96,7 @@ public class Timer {
 
     /** Return an approximation of the total time spent between consecutive calls of #start and #stop. */
     public final long getApproximateTiming() {
+        logger.info("++++++++++++++++getApproximateTiming:Timer called ++++++");
         if (start != 0) {
             throw new IllegalStateException("#start call misses a matching #stop call");
         }
