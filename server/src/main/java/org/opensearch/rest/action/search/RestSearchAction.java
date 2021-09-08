@@ -32,6 +32,8 @@
 
 package org.opensearch.rest.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.action.search.SearchAction;
@@ -46,6 +48,7 @@ import org.opensearch.common.logging.DeprecationLogger;
 import org.opensearch.common.xcontent.XContentParser;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.rest.BaseRestHandler;
+import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.action.RestActions;
 import org.opensearch.rest.action.RestCancellableNodeClient;
@@ -80,6 +83,7 @@ public class RestSearchAction extends BaseRestHandler {
      * Indicates whether hits.total should be rendered as an integer or an object
      * in the rest search response.
      */
+    private static final Logger logger = LogManager.getLogger(RestSearchAction.class);
     public static final String TOTAL_HITS_AS_INT_PARAM = "rest_total_hits_as_int";
     public static final String TYPED_KEYS_PARAM = "typed_keys";
     private static final Set<String> RESPONSE_PARAMS;
@@ -128,7 +132,7 @@ public class RestSearchAction extends BaseRestHandler {
         IntConsumer setSize = size -> searchRequest.source().size(size);
         request.withContentOrSourceParamParserOrNull(parser ->
             parseSearchRequest(searchRequest, request, parser, client.getNamedWriteableRegistry(), setSize));
-
+        logger.info("RestSearchACtion: prepareRequest [{}]", searchRequest);
         return channel -> {
             RestCancellableNodeClient cancelClient = new RestCancellableNodeClient(client, request.getHttpChannel());
             cancelClient.execute(SearchAction.INSTANCE, searchRequest, new RestStatusToXContentListener<>(channel));

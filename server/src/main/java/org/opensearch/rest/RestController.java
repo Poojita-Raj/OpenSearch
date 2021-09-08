@@ -337,6 +337,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
             requestMethod = request.method();
             // Loop through all possible handlers, attempting to dispatch the request
             Iterator<MethodHandlers> allHandlers = getAllHandlers(request.params(), rawPath);
+            logger.info("RestController: tryAllHandlers= number of handlers = [{}]", allHandlers.size);
             while (allHandlers.hasNext()) {
                 final RestHandler handler;
                 final MethodHandlers handlers = allHandlers.next();

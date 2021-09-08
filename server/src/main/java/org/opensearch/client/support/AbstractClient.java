@@ -425,6 +425,7 @@ public abstract class AbstractClient implements Client {
     public final <Request extends ActionRequest, Response extends ActionResponse> void execute(
         ActionType<Response> action, Request request, ActionListener<Response> listener) {
         listener = threadedWrapper.wrap(listener);
+        logger.info("execute:AbstractClient single execution point for all clients");
         doExecute(action, request, listener);
     }
 

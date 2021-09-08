@@ -32,6 +32,8 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
@@ -71,6 +73,7 @@ import org.opensearch.index.Index;
 import org.opensearch.index.query.Rewriteable;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.rest.action.search.RestSearchAction;
 import org.opensearch.search.SearchPhaseResult;
 import org.opensearch.search.SearchService;
 import org.opensearch.search.SearchShardTarget;
@@ -119,6 +122,7 @@ import static org.opensearch.search.sort.FieldSortBuilder.hasPrimaryFieldSort;
 
 public class TransportSearchAction extends HandledTransportAction<SearchRequest, SearchResponse> {
 
+    private static final Logger logger = LogManager.getLogger(TransportSearchAction.class);
     /** The maximum number of shards for a single search request. */
     public static final Setting<Long> SHARD_COUNT_LIMIT_SETTING = Setting.longSetting(
             "action.search.shard_count.limit", Long.MAX_VALUE, 1L, Property.Dynamic, Property.NodeScope);
@@ -329,6 +333,8 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                     searchRequest.indices(), idx -> indexNameExpressionResolver.hasIndexAbstraction(idx, clusterState));
             }
             OriginalIndices localIndices = remoteClusterIndices.remove(RemoteClusterAware.LOCAL_CLUSTER_GROUP_KEY);
+            logger.info("executeRequest: TransportSearchAction - remoteClusterIndices= [{}]", remoteClusterIndices);
+            logger.info("executeRequest: TransportSearchAction - localIndices= [{}]", localIndices);
             if (remoteClusterIndices.isEmpty()) {
                 executeLocalSearch(
                     task, timeProvider, searchRequest, localIndices, clusterState, listener, searchContext, searchAsyncActionProvider);
@@ -706,6 +712,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         final DiscoveryNodes nodes = clusterState.nodes();
         BiFunction<String, String, Transport.Connection> connectionLookup = buildConnectionLookup(searchRequest.getLocalClusterAlias(),
             nodes::get, remoteConnections, searchTransportService::getConnection);
+        logger.info(" TransportSearchAction: executeSearch, Number of discovery nodes = [{}]", nodes.getSize());
         final Executor asyncSearchExecutor = asyncSearchExecutor(concreteLocalIndices, clusterState);
         final boolean preFilterSearchShards = shouldPreFilterSearchShards(clusterState, searchRequest, concreteLocalIndices,
             localShardIterators.size() + remoteShardIterators.size());

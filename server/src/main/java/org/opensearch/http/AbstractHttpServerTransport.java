@@ -393,7 +393,7 @@ public abstract class AbstractHttpServerTransport extends AbstractLifecycleCompo
             }
             channel = innerChannel;
         }
-
+        logger.info("handleIncomingRequest:AbstractHttpServerTransport = restRequest= [{}] channel = [{}]", restRequest, channel);
         dispatchRequest(restRequest, channel, badRequestCause);
     }
 

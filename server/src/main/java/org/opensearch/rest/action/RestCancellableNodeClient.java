@@ -121,6 +121,7 @@ public class RestCancellableNodeClient extends FilterClient {
                 }
             });
         final TaskId taskId = new TaskId(client.getLocalNodeId(), task.getId());
+        logger.info("doExecute:RestCancellableNodeClient = RESTclient now taskId= [{}]",taskId );
         closeListener.registerTask(taskHolder, taskId);
         closeListener.maybeRegisterChannel(httpChannel);
     }
