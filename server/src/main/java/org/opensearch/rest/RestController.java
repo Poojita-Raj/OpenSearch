@@ -337,8 +337,9 @@ public class RestController implements HttpServerTransport.Dispatcher {
             requestMethod = request.method();
             // Loop through all possible handlers, attempting to dispatch the request
             Iterator<MethodHandlers> allHandlers = getAllHandlers(request.params(), rawPath);
-            logger.info("RestController: tryAllHandlers= number of handlers = [{}]", allHandlers.size);
+            int numHandlers = 0;
             while (allHandlers.hasNext()) {
+                numHandlers = numHandlers + 1;
                 final RestHandler handler;
                 final MethodHandlers handlers = allHandlers.next();
                 if (handlers == null) {
@@ -355,6 +356,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
                     return;
                 }
             }
+            logger.info("RestController: tryAllHandlers= number of handlers = [{}]",numHandlers );
         } catch (final IllegalArgumentException e) {
             handleUnsupportedHttpMethod(uri, null, channel, getValidHandlerMethodSet(rawPath), e);
             return;
