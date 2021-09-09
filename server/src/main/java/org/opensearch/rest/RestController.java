@@ -356,7 +356,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
                     return;
                 }
             }
-            logger.info("RestController: tryAllHandlers= number of handlers = [{}]",numHandlers );
+            logger.debug("RestController: tryAllHandlers= number of handlers = [{}]",numHandlers);
         } catch (final IllegalArgumentException e) {
             handleUnsupportedHttpMethod(uri, null, channel, getValidHandlerMethodSet(rawPath), e);
             return;

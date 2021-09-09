@@ -96,7 +96,7 @@ public class Timer {
 
     /** Return an approximation of the total time spent between consecutive calls of #start and #stop. */
     public final long getApproximateTiming() {
-        logger.info("++++++++++++++++getApproximateTiming:Timer called ++++++");
+        logger.info("=========getApproximateTiming:Timer called ++++++");
         if (start != 0) {
             throw new IllegalStateException("#start call misses a matching #stop call");
         }
