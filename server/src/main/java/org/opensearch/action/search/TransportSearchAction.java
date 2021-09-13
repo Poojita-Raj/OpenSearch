@@ -324,11 +324,6 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             final ClusterState clusterState = clusterService.state();
             final SearchContextId searchContext;
             final Map<String, OriginalIndices> remoteClusterIndices;
-            logger.info("remoteclusterindices keys:");
-            Set<String> keys = remoteClusterIndices.keySet();
-            for (String k : keys) {
-                logger.info(k);
-            }
             if (searchRequest.pointInTimeBuilder() != null) {
                 searchContext = SearchContextId.decode(namedWriteableRegistry, searchRequest.pointInTimeBuilder().getId());
                 remoteClusterIndices = getIndicesFromSearchContexts(searchContext, searchRequest.indicesOptions());
