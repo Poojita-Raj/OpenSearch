@@ -154,7 +154,7 @@ public class SearchTransportService {
         Writeable.Reader<SearchPhaseResult> reader = fetchDocuments ? QueryFetchSearchResult::new : QuerySearchResult::new;
 
         final ActionListener handler = responseWrapper.apply(connection, listener);
-        logger.info("sendExecuteQuery NumShards = [{}] query-action-name = [{}] connection = [{}] and request = [{}], node-id =[{}] ",request.numberOfShards(),QUERY_ACTION_NAME,connection,request,connection.getNode().getId());
+        logger.info("sendExecuteQuery NumShards = [{}] query-action-name = [{}] connection = [{}] , connection node = [{}] and request = [{}], node-id =[{}] ",request.numberOfShards(),QUERY_ACTION_NAME,connection,connection.getNode(),request,connection.getNode().getId());
         transportService.sendChildRequest(connection, QUERY_ACTION_NAME, request, task,
                 new ConnectionCountingHandler<>(handler, reader, clientConnections, connection.getNode().getId()));
     }
