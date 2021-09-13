@@ -718,7 +718,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         BiFunction<String, String, Transport.Connection> connectionLookup = buildConnectionLookup(searchRequest.getLocalClusterAlias(),
             nodes::get, remoteConnections, searchTransportService::getConnection);
         logger.info(" TransportSearchAction: executeSearch, Number of discovery nodes = [{}]", nodes.getSize());
-        logger.info("connection lookup = [{}]", connectionLookup)
+        logger.info("connection lookup = [{}]", connectionLookup);
         final Executor asyncSearchExecutor = asyncSearchExecutor(concreteLocalIndices, clusterState);
         final boolean preFilterSearchShards = shouldPreFilterSearchShards(clusterState, searchRequest, concreteLocalIndices,
             localShardIterators.size() + remoteShardIterators.size());
