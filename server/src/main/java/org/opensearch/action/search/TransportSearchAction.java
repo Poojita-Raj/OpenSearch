@@ -324,6 +324,11 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
             final ClusterState clusterState = clusterService.state();
             final SearchContextId searchContext;
             final Map<String, OriginalIndices> remoteClusterIndices;
+            logger.info("remoteclusterindices keys:");
+            Set<String> keys = remoteClusterIndices.keySet();
+            for (String k : keys) {
+                logger.info(k);
+            }
             if (searchRequest.pointInTimeBuilder() != null) {
                 searchContext = SearchContextId.decode(namedWriteableRegistry, searchRequest.pointInTimeBuilder().getId());
                 remoteClusterIndices = getIndicesFromSearchContexts(searchContext, searchRequest.indicesOptions());
@@ -713,6 +718,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
         BiFunction<String, String, Transport.Connection> connectionLookup = buildConnectionLookup(searchRequest.getLocalClusterAlias(),
             nodes::get, remoteConnections, searchTransportService::getConnection);
         logger.info(" TransportSearchAction: executeSearch, Number of discovery nodes = [{}]", nodes.getSize());
+        logger.info("connection lookup = [{}]", connectionLookup)
         final Executor asyncSearchExecutor = asyncSearchExecutor(concreteLocalIndices, clusterState);
         final boolean preFilterSearchShards = shouldPreFilterSearchShards(clusterState, searchRequest, concreteLocalIndices,
             localShardIterators.size() + remoteShardIterators.size());

@@ -32,6 +32,8 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.LegacyESVersion;
 import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
@@ -81,6 +83,8 @@ import java.util.function.BiFunction;
  * transport.
  */
 public class SearchTransportService {
+
+    private static final Logger logger = LogManager.getLogger(SearchTransportService.class);
 
     public static final String FREE_CONTEXT_SCROLL_ACTION_NAME = "indices:data/read/search[free_context/scroll]";
     public static final String FREE_CONTEXT_ACTION_NAME = "indices:data/read/search[free_context]";
@@ -150,6 +154,7 @@ public class SearchTransportService {
         Writeable.Reader<SearchPhaseResult> reader = fetchDocuments ? QueryFetchSearchResult::new : QuerySearchResult::new;
 
         final ActionListener handler = responseWrapper.apply(connection, listener);
+        logger.info("sendExecuteQuery NumShards = [{}] query-action-name = [{}] connection = [{}] and request = [{}], node-id =[{}] ",request.numberOfShards(),QUERY_ACTION_NAME,connection,request,connection.getNode().getId());
         transportService.sendChildRequest(connection, QUERY_ACTION_NAME, request, task,
                 new ConnectionCountingHandler<>(handler, reader, clientConnections, connection.getNode().getId()));
     }
