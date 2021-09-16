@@ -437,6 +437,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private SearchPhaseResult executeQueryPhase(ShardSearchRequest request,
                                                 SearchShardTask task,
                                                 boolean keepStatesInContext) throws Exception {
+        logger.info("executeQueryPhase: SearchService.java, request = [{}] and task = [{}]", request, task);
         final ReaderContext readerContext = createOrGetReaderContext(request, keepStatesInContext);
         try (Releasable ignored = readerContext.markAsUsed(getKeepAlive(request));
                 SearchContext context = createContext(readerContext, request, task, true)) {
@@ -1228,6 +1229,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
         // we also do rewrite on the coordinating node (TransportSearchService) but we also need to do it here for BWC as well as
         // AliasFilters that might need to be rewritten. These are edge-cases but we are every efficient doing the rewrite here so it's not
         // adding a lot of overhead
+        logger.info("rewriteAndFetchShardRequest: searchService.java; shard = [{}]; request = [{}], actionlistener = [{}]", shard.shardId(), request, listener);
         Rewriteable.rewriteAndFetch(request.getRewriteable(), indicesService.getRewriteContext(request::nowInMillis), actionListener);
     }
 

@@ -32,6 +32,8 @@
 
 package org.opensearch.transport;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.lease.Releasable;
@@ -44,6 +46,7 @@ import java.io.IOException;
 
 public class RequestHandlerRegistry<Request extends TransportRequest> {
 
+    private static final Logger logger = LogManager.getLogger(RequestHandlerRegistry.class);
     private final String action;
     private final TransportRequestHandler<Request> handler;
     private final boolean forceExecution;
@@ -73,6 +76,7 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
     }
 
     public void processMessageReceived(Request request, TransportChannel channel) throws Exception {
+        logger.info("processMessageReceived: RequestHandlerRegistry.java; request = [{}]", request);
         final Task task = taskManager.register(channel.getChannelType(), action, request);
         Releasable unregisterTask = () -> taskManager.unregister(task);
         try {

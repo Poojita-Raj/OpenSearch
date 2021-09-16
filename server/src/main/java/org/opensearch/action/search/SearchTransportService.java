@@ -304,6 +304,7 @@ public class SearchTransportService {
     }
 
     public static void registerRequestHandler(TransportService transportService, SearchService searchService) {
+        logger.info("registerRequestHandler:SearchTransportService.java; transportService = [{}] and searchService = [{}]", transportService, searchService);
         transportService.registerRequestHandler(FREE_CONTEXT_SCROLL_ACTION_NAME, ThreadPool.Names.SAME, ScrollFreeContextRequest::new,
             (request, channel, task) -> {
                 boolean freed = searchService.freeReaderContext(request.id());
