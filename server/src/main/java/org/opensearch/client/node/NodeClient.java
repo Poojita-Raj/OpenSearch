@@ -96,7 +96,7 @@ public class NodeClient extends AbstractClient {
     public <    Request extends ActionRequest,
                 Response extends ActionResponse
             > Task executeLocally(ActionType<Response> action, Request request, ActionListener<Response> listener) {
-        logger.info("execute action type action = [{}] locally; method used to inmplement client interface",action);
+        logger.info("execute locally; ShardSearchRequest.java:99");
         return transportAction(action).execute(request, listener);
     }
 

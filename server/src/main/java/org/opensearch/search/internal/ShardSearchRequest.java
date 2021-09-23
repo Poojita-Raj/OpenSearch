@@ -72,6 +72,7 @@ import org.opensearch.transport.TransportRequest;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Function;
+import java.lang.*;
 
 import static org.opensearch.search.internal.SearchContext.TRACK_TOTAL_HITS_DISABLED;
 
@@ -90,6 +91,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
     private final float indexBoost;
     private final Boolean requestCache;
     private final long nowInMillis;
+    private long networkTime;
     private final boolean allowPartialSearchResults;
     private final String[] indexRoutings;
     private final String preference;
@@ -188,6 +190,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         this.preference = preference;
         this.scroll = scroll;
         this.nowInMillis = nowInMillis;
+        this.networkTime = System.currentTimeMillis();
         this.clusterAlias = clusterAlias;
         this.originalIndices = originalIndices;
         this.readerId = readerId;
@@ -206,6 +209,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         aliasFilter = new AliasFilter(in);
         indexBoost = in.readFloat();
         nowInMillis = in.readVLong();
+        networkTime = in.readVLong();
         requestCache = in.readOptionalBoolean();
         clusterAlias = in.readOptionalString();
         if (in.getVersion().onOrAfter(LegacyESVersion.V_7_0_0)) {
@@ -250,6 +254,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         this.aliasFilter = clone.aliasFilter;
         this.indexBoost = clone.indexBoost;
         this.nowInMillis = clone.nowInMillis;
+        this.networkTime = clone.networkTime;
         this.requestCache = clone.requestCache;
         this.clusterAlias = clone.clusterAlias;
         this.allowPartialSearchResults = clone.allowPartialSearchResults;
@@ -361,6 +366,10 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
     public long nowInMillis() {
         return nowInMillis;
     }
+
+    public long networkTime() { return networkTime; }
+
+    public void setNetworkTime(long newTime) { this.networkTime = newTime; }
 
     public Boolean requestCache() {
         return requestCache;

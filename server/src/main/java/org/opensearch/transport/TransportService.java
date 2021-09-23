@@ -65,6 +65,7 @@ import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.node.NodeClosedException;
 import org.opensearch.node.ReportingService;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskManager;
 import org.opensearch.threadpool.Scheduler;
@@ -88,6 +89,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.*;
 
 public class TransportService extends AbstractLifecycleComponent implements ReportingService<TransportInfo>, TransportMessageListener,
     TransportConnectionListener {
@@ -752,6 +754,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
                                                                    final TransportRequest request,
                                                                    final TransportRequestOptions options,
                                                                    TransportResponseHandler<T> handler) {
+        logger.info("SENDREQUESTINTERNAL!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         if (connection == null) {
             throw new IllegalStateException("can't send request to a null connection");
         }
@@ -984,6 +987,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
      */
     @Override
     public void onRequestReceived(long requestId, String action) {
+        logger.info("=========================REQUEST RECEIVED======================= [{}]", action);
         if (handleIncomingRequests.get() == false) {
             throw new IllegalStateException("transport not ready yet to handle incoming requests");
         }

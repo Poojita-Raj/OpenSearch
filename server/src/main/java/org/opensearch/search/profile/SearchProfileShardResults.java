@@ -32,6 +32,8 @@
 
 package org.opensearch.search.profile;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.io.stream.Writeable;
@@ -42,6 +44,7 @@ import org.opensearch.search.profile.aggregation.AggregationProfileShardResult;
 import org.opensearch.search.profile.aggregation.AggregationProfiler;
 import org.opensearch.search.profile.query.QueryProfileShardResult;
 import org.opensearch.search.profile.query.QueryProfiler;
+import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,8 +62,10 @@ import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedT
  */
 public final class SearchProfileShardResults implements Writeable, ToXContentFragment {
 
+    private static final Logger logger = LogManager.getLogger(SearchProfileShardResults.class);
     private static final String SEARCHES_FIELD = "searches";
     private static final String ID_FIELD = "id";
+    private static final String NETWORK_TIME = "network_time_in_millis";
     private static final String SHARDS_FIELD = "shards";
     public static final String PROFILE_FIELD = "profile";
 
@@ -104,6 +109,7 @@ public final class SearchProfileShardResults implements Writeable, ToXContentFra
         for (String key : sortedKeys) {
             builder.startObject();
             builder.field(ID_FIELD, key);
+            builder.field(NETWORK_TIME, key);
             builder.startArray(SEARCHES_FIELD);
             ProfileShardResult profileShardResult = shardResults.get(key);
             for (QueryProfileShardResult result : profileShardResult.getQueryProfileResults()) {
