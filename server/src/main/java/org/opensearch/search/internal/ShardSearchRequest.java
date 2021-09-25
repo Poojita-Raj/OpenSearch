@@ -190,7 +190,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         this.preference = preference;
         this.scroll = scroll;
         this.nowInMillis = nowInMillis;
-        this.networkTime = System.currentTimeMillis();
+        this.networkTime = 0;
         this.clusterAlias = clusterAlias;
         this.originalIndices = originalIndices;
         this.readerId = readerId;

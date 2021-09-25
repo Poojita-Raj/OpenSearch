@@ -34,10 +34,13 @@ package org.opensearch.transport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.action.search.SearchTransportService;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
+import org.opensearch.search.internal.ShardSearchContextId;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.tasks.CancellableTask;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskManager;
@@ -79,11 +82,23 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
         logger.info("processMessageReceived: RequestHandlerRegistry.java; request = [{}]", request);
         final Task task = taskManager.register(channel.getChannelType(), action, request);
         Releasable unregisterTask = () -> taskManager.unregister(task);
+        if (request instanceof ShardSearchRequest) {
+            logger.info("START processMsgReceived");
+            ((ShardSearchRequest) request).setNetworkTime(System.currentTimeMillis());
+        }
+        if (request instanceof SearchTransportService.SearchFreeContextRequest) {
+            logger.info("END processMsgReceived");
+            ((ShardSearchRequest)request).setNetworkTime(System.currentTimeMillis() - ((ShardSearchRequest) request).networkTime());
+        }
         try {
             if (channel instanceof TcpTransportChannel && task instanceof CancellableTask) {
+                logger.info("entered Tcp Transport + cancellable task");
                 final TcpChannel tcpChannel = ((TcpTransportChannel) channel).getChannel();
                 final Releasable stopTracking = taskManager.startTrackingCancellableChannelTask(tcpChannel, (CancellableTask) task);
                 unregisterTask = Releasables.wrap(unregisterTask, stopTracking);
+            }
+            if (channel instanceof TcpTransportChannel ) {
+                logger.info("entered Tcp Transport");
             }
             final TaskTransportChannel taskTransportChannel = new TaskTransportChannel(channel, unregisterTask);
             handler.messageReceived(request, taskTransportChannel, task);

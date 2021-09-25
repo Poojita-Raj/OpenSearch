@@ -240,7 +240,7 @@ public class SearchTransportService {
 
     }
 
-    static class SearchFreeContextRequest extends ScrollFreeContextRequest implements IndicesRequest {
+    public static class SearchFreeContextRequest extends ScrollFreeContextRequest implements IndicesRequest {
         private OriginalIndices originalIndices;
 
         SearchFreeContextRequest(OriginalIndices originalIndices, ShardSearchContextId id) {
