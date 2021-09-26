@@ -84,11 +84,11 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
         Releasable unregisterTask = () -> taskManager.unregister(task);
         if (request instanceof ShardSearchRequest) {
             logger.info("START processMsgReceived");
-            ((ShardSearchRequest) request).setNetworkTime(System.currentTimeMillis());
+            //((ShardSearchRequest) request).setNetworkTime(System.currentTimeMillis());
         }
         if (request instanceof SearchTransportService.SearchFreeContextRequest) {
             logger.info("END processMsgReceived");
-            ((ShardSearchRequest)request).setNetworkTime(System.currentTimeMillis() - ((ShardSearchRequest) request).networkTime());
+            //((ShardSearchRequest)request).setNetworkTime(System.currentTimeMillis() - ((ShardSearchRequest) request).networkTime());
         }
         try {
             if (channel instanceof TcpTransportChannel && task instanceof CancellableTask) {
