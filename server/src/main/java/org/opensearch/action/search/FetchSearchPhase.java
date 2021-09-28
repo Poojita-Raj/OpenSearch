@@ -186,6 +186,7 @@ final class FetchSearchPhase extends SearchPhase {
                               final CountedCollector<FetchSearchResult> counter,
                               final ShardFetchSearchRequest fetchSearchRequest, final QuerySearchResult querySearchResult,
                               final Transport.Connection connection) {
+        logger.info("executeFetch: FetchSearchPhase.java, req = [{}], shardTarget = [{}], Queryresult = [{}]", fetchSearchRequest, shardTarget, querySearchResult);
         context.getSearchTransport().sendExecuteFetch(connection, fetchSearchRequest, context.getTask(),
             new SearchActionListener<FetchSearchResult>(shardTarget, shardIndex) {
                 @Override

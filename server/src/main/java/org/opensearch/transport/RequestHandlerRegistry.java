@@ -79,6 +79,7 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
     }
 
     public void processMessageReceived(Request request, TransportChannel channel) throws Exception {
+        logger.info("processmsgreceived = [{}], channel = [{}]", request, channel);
         final Task task = taskManager.register(channel.getChannelType(), action, request);
         Releasable unregisterTask = () -> taskManager.unregister(task);
         if (request instanceof ShardSearchRequest) {

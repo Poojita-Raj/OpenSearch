@@ -32,6 +32,7 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.TopFieldDocs;
 import org.opensearch.action.ActionListener;
@@ -51,7 +52,7 @@ import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 
 class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPhaseResult> {
-
+    private final Logger logger = LogManager.getLogger(SearchQueryThenFetchAsyncAction.class);
     private final SearchPhaseController searchPhaseController;
     private final SearchProgressListener progressListener;
 
@@ -101,6 +102,7 @@ class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPh
 
     @Override
     protected void onShardResult(SearchPhaseResult result, SearchShardIterator shardIt) {
+        logger.info("RESULTTTTTT for shard [{}] = [{}]", shardIt, result);
         QuerySearchResult queryResult = result.queryResult();
         if (queryResult.isNull() == false
                 // disable sort optims for scroll requests because they keep track of the last bottom doc locally (per shard)

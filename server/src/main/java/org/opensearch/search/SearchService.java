@@ -396,6 +396,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
             @Override
             public void onResponse(ShardSearchRequest orig) {
                 // check if we can shortcut the query phase entirely.
+                logger.info("onResponse for req (rewriteandfetchshardreq's actionListener) = [{}]", orig);
                 if (orig.canReturnNullResponseIfMatchNoDocs()) {
                     assert orig.scroll() == null;
                     final CanMatchResponse canMatchResp;
