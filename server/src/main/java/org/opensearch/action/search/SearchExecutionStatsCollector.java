@@ -32,6 +32,10 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.action.ActionListener;
 import org.opensearch.node.ResponseCollectorService;
 import org.opensearch.search.SearchPhaseResult;
@@ -47,7 +51,7 @@ import java.util.function.BiFunction;
  * values to the coordinating nodes' {@link ResponseCollectorService}.
  */
 public final class SearchExecutionStatsCollector implements ActionListener<SearchPhaseResult> {
-
+    private static final Logger logger = LogManager.getLogger(SearchExecutionStatsCollector.class);
     private final ActionListener<SearchPhaseResult> listener;
     private final String nodeId;
     private final ResponseCollectorService collector;
@@ -69,6 +73,16 @@ public final class SearchExecutionStatsCollector implements ActionListener<Searc
     @Override
     public void onResponse(SearchPhaseResult response) {
         QuerySearchResult queryResult = response.queryResult();
+        logger.info("step4 remote add = {}\n\n", response.remoteAddress());
+        if (response.remoteAddress() != null) {
+            logger.info("step4 remote time before: in: {}, out: {}\n\n",response.getShardSearchRequest().getInboundNetworkTime(), response.getShardSearchRequest().getOutboundNetworkTime());
+            response.getShardSearchRequest().setOutboundNetworkTime(System.currentTimeMillis() - response.getShardSearchRequest().getOutboundNetworkTime());
+            logger.info("step4 remote time after: in : {}, out: {}\n\n",response.getShardSearchRequest().getInboundNetworkTime(), response.getShardSearchRequest().getOutboundNetworkTime());
+        } else {
+            response.getShardSearchRequest().setOutboundNetworkTime(0);
+            response.getShardSearchRequest().setInboundNetworkTime(0);
+            logger.info("step4 local time : in {}, out {}\n\n",response.getShardSearchRequest().getInboundNetworkTime(), response.getShardSearchRequest().getOutboundNetworkTime());
+        }
         if (nodeId != null && queryResult != null) {
             final long serviceTimeEWMA = queryResult.serviceTimeEWMA();
             final int queueSize = queryResult.nodeQueueSize();

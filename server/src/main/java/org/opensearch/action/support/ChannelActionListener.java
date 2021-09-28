@@ -31,15 +31,18 @@
  */
 
 package org.opensearch.action.support;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.action.ActionListener;
+import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.transport.TransportChannel;
 import org.opensearch.transport.TransportRequest;
 import org.opensearch.transport.TransportResponse;
+import org.opensearch.transport.TransportService;
 
 public final class ChannelActionListener<
     Response extends TransportResponse, Request extends TransportRequest> implements ActionListener<Response> {
-
+    private static final Logger logger = LogManager.getLogger(ChannelActionListener.class);
     private final TransportChannel channel;
     private final Request request;
     private final String actionName;

@@ -32,6 +32,7 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.TopFieldDocs;
 import org.opensearch.action.ActionListener;
@@ -51,7 +52,7 @@ import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 
 class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPhaseResult> {
-
+    private final Logger logger = LogManager.getLogger(SearchQueryThenFetchAsyncAction.class);
     private final SearchPhaseController searchPhaseController;
     private final SearchProgressListener progressListener;
 
@@ -91,6 +92,10 @@ class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPh
                                        final SearchShardTarget shard,
                                        final SearchActionListener<SearchPhaseResult> listener) {
         ShardSearchRequest request = rewriteShardSearchRequest(super.buildShardSearchRequest(shardIt));
+        // step 1: update n/w time with starting time = A's time
+        logger.info("STEP1\n\n");
+        request.setInboundNetworkTime(System.currentTimeMillis());
+        logger.info("STEP1 - set inbound timing to currentTime : {}\n\n", request.getInboundNetworkTime());
         getSearchTransport().sendExecuteQuery(getConnection(shard.getClusterAlias(), shard.getNodeId()), request, getTask(), listener);
     }
 
@@ -101,7 +106,17 @@ class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPh
 
     @Override
     protected void onShardResult(SearchPhaseResult result, SearchShardIterator shardIt) {
+        logger.info("RESULTTTTTT for shard [{}] = [{}]", shardIt, result);
         QuerySearchResult queryResult = result.queryResult();
+        //logger.info("step4 -{} \n\n", queryResult.remoteAddress());
+        //if (queryResult.remoteAddress() == null) {
+        //    logger.info("on same node so step4 set n/w time to 0");
+        //    result.queryResult().getShardSearchRequest().setNetworkTime(0);
+        //} else {
+        //    logger.info("step4 for remote - update by adding current time");
+        //    result.queryResult().getShardSearchRequest().setNetworkTime(result.queryResult().getShardSearchRequest().getNetworkTime() + System.currentTimeMillis());
+
+        //}
         if (queryResult.isNull() == false
                 // disable sort optims for scroll requests because they keep track of the last bottom doc locally (per shard)
                 && getRequest().scroll() == null

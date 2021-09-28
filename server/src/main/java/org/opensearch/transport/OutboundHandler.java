@@ -50,6 +50,7 @@ import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.util.BigArrays;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.internal.io.IOUtils;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -95,6 +96,9 @@ final class OutboundHandler {
                      final TransportRequest request, final TransportRequestOptions options, final Version channelVersion,
                      final boolean compressRequest, final boolean isHandshake) throws IOException, TransportException {
         Version version = Version.min(this.version, channelVersion);
+        //if(request instanceof ShardSearchRequest) {
+        //    logger.info("send request:outboundHandler : {} time: {}", request,((ShardSearchRequest) request).getNetworkTime());
+        //}
         OutboundMessage.Request message = new OutboundMessage.Request(threadPool.getThreadContext(), features, request, version, action,
             requestId, isHandshake, compressRequest);
         ActionListener<Void> listener = ActionListener.wrap(() ->

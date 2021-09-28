@@ -38,6 +38,8 @@ import static org.opensearch.common.lucene.Lucene.writeTopDocs;
 
 import java.io.IOException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.TotalHits;
 import org.opensearch.LegacyESVersion;
@@ -58,7 +60,7 @@ import org.opensearch.search.profile.ProfileShardResult;
 import org.opensearch.search.suggest.Suggest;
 
 public final class QuerySearchResult extends SearchPhaseResult {
-
+    private static final Logger logger = LogManager.getLogger(QuerySearchResult.class);
     private int from;
     private int size;
     private TopDocsAndMaxScore topDocsAndMaxScore;
@@ -244,6 +246,10 @@ public final class QuerySearchResult extends SearchPhaseResult {
             throw new IllegalStateException("profile results already consumed");
         }
         ProfileShardResult result = profileShardResults;
+        logger.info("before consumption time : in {}, out ; {}", result.getInboundNetworkTime(), result.getOutboundNetworkTime());
+        result.setInboundNetworkTime(this.getShardSearchRequest().getInboundNetworkTime());
+        result.setOutboundNetworkTime(this.getShardSearchRequest().getOutboundNetworkTime());
+        logger.info("after consumption time : in {}, out : {}", result.getInboundNetworkTime(), result.getOutboundNetworkTime());
         profileShardResults = null;
         return result;
     }

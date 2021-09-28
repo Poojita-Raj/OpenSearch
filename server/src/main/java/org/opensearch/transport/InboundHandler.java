@@ -45,6 +45,7 @@ import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.AbstractRunnable;
 import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -217,6 +218,9 @@ public class InboundHandler {
                     final String executor = reg.getExecutor();
                     if (ThreadPool.Names.SAME.equals(executor)) {
                         try {
+                            //if (request instanceof ShardSearchRequest){
+                            //    logger.info("req inboundhandler: {} time : {}", request, ((ShardSearchRequest) request).getNetworkTime());
+                            //}
                             reg.processMessageReceived(request, transportChannel);
                         } catch (Exception e) {
                             sendErrorResponse(reg.getAction(), transportChannel, e);

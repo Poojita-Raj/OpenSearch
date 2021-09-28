@@ -32,6 +32,8 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.OriginalIndices;
 import org.opensearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
@@ -118,6 +120,8 @@ import static org.opensearch.action.search.SearchType.QUERY_THEN_FETCH;
 import static org.opensearch.search.sort.FieldSortBuilder.hasPrimaryFieldSort;
 
 public class TransportSearchAction extends HandledTransportAction<SearchRequest, SearchResponse> {
+
+    private static final Logger logger = LogManager.getLogger(TransportSearchAction.class);
 
     /** The maximum number of shards for a single search request. */
     public static final Setting<Long> SHARD_COUNT_LIMIT_SETTING = Setting.longSetting(
@@ -417,6 +421,7 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                     Map<String, ProfileShardResult> profileResults = searchResponse.getProfileResults();
                     SearchProfileShardResults profile = profileResults == null || profileResults.isEmpty()
                         ? null : new SearchProfileShardResults(profileResults);
+                    logger.info("SearchProfileShardResults called in TransportSearchAction.java \n\n\n");
                     InternalSearchResponse internalSearchResponse = new InternalSearchResponse(searchResponse.getHits(),
                         (InternalAggregations) searchResponse.getAggregations(), searchResponse.getSuggest(), profile,
                         searchResponse.isTimedOut(), searchResponse.isTerminatedEarly(), searchResponse.getNumReducePhases());

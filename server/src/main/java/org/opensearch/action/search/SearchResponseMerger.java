@@ -32,6 +32,8 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.SortField;
@@ -90,6 +92,8 @@ final class SearchResponseMerger {
     private final TransportSearchAction.SearchTimeProvider searchTimeProvider;
     private final InternalAggregation.ReduceContextBuilder aggReduceContextBuilder;
     private final List<SearchResponse> searchResponses = new CopyOnWriteArrayList<>();
+
+    private static final Logger logger = LogManager.getLogger(SearchResponseMerger.class);
 
     SearchResponseMerger(int from, int size, int trackTotalHitsUpTo, TransportSearchAction.SearchTimeProvider searchTimeProvider,
                          InternalAggregation.ReduceContextBuilder aggReduceContextBuilder) {
@@ -207,6 +211,7 @@ final class SearchResponseMerger {
         InternalAggregations reducedAggs = InternalAggregations.topLevelReduce(aggs, aggReduceContextBuilder.forFinalReduction());
         ShardSearchFailure[] shardFailures = failures.toArray(ShardSearchFailure.EMPTY_ARRAY);
         SearchProfileShardResults profileShardResults = profileResults.isEmpty() ? null : new SearchProfileShardResults(profileResults);
+        logger.info("SearchProfileShardResults called in SearchResponseMerger.java \n\n\n");
         //make failures ordering consistent between ordinary search and CCS by looking at the shard they come from
         Arrays.sort(shardFailures, FAILURES_COMPARATOR);
         InternalSearchResponse response = new InternalSearchResponse(mergedSearchHits, reducedAggs, suggest, profileShardResults,

@@ -34,6 +34,7 @@ package org.opensearch.transport;
 
 import org.opensearch.Version;
 import org.opensearch.common.lease.Releasable;
+import org.opensearch.search.query.QuerySearchResult;
 
 import java.io.IOException;
 import java.util.Set;
@@ -73,6 +74,11 @@ public final class TcpTransportChannel implements TransportChannel {
     @Override
     public void sendResponse(TransportResponse response) throws IOException {
         try {
+            if (response instanceof QuerySearchResult) {
+                logger.info("step3b before : in {} out {}\n\n",((QuerySearchResult) response).getShardSearchRequest().getInboundNetworkTime(), ((QuerySearchResult) response).getShardSearchRequest().getOutboundNetworkTime() );
+                ((QuerySearchResult) response).getShardSearchRequest().setOutboundNetworkTime(System.currentTimeMillis());
+                logger.info("step3b after in : {}, out: {}\n\n",((QuerySearchResult) response).getShardSearchRequest().getInboundNetworkTime(), ((QuerySearchResult) response).getShardSearchRequest().getOutboundNetworkTime() );
+            }
             outboundHandler.sendResponse(version, features, channel, requestId, action, response, compressResponse, isHandshake);
         } finally {
             release(false);
