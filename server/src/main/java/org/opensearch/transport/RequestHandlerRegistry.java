@@ -32,17 +32,23 @@
 
 package org.opensearch.transport;
 
+import org.opensearch.action.search.SearchTransportService;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lease.Releasables;
+import org.opensearch.gateway.GatewayService;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.tasks.CancellableTask;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 
 public class RequestHandlerRegistry<Request extends TransportRequest> {
+    private static final Logger logger = LogManager.getLogger(RequestHandlerRegistry.class);
 
     private final String action;
     private final TransportRequestHandler<Request> handler;
@@ -75,11 +81,21 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
     public void processMessageReceived(Request request, TransportChannel channel) throws Exception {
         final Task task = taskManager.register(channel.getChannelType(), action, request);
         Releasable unregisterTask = () -> taskManager.unregister(task);
+        if (request instanceof ShardSearchRequest) {
+            logger.info("START processMsgReceived");
+        }
+        if (request instanceof SearchTransportService.SearchFreeContextRequest) {
+           logger.info("END processMsgReceived");
+        }
         try {
             if (channel instanceof TcpTransportChannel && task instanceof CancellableTask) {
+                logger.info("tcp + cancellable task: Sending over n/w req = [{}]", request);
                 final TcpChannel tcpChannel = ((TcpTransportChannel) channel).getChannel();
                 final Releasable stopTracking = taskManager.startTrackingCancellableChannelTask(tcpChannel, (CancellableTask) task);
                 unregisterTask = Releasables.wrap(unregisterTask, stopTracking);
+            }
+            if ( channel instanceof TcpTransportChannel) {
+                logger.info("tcp: Sending over n/w req = [{}]", request);
             }
             final TaskTransportChannel taskTransportChannel = new TaskTransportChannel(channel, unregisterTask);
             handler.messageReceived(request, taskTransportChannel, task);

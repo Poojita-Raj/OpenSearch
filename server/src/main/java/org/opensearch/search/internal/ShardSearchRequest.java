@@ -90,6 +90,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
     private final float indexBoost;
     private final Boolean requestCache;
     private final long nowInMillis;
+    private long networkTime;
     private final boolean allowPartialSearchResults;
     private final String[] indexRoutings;
     private final String preference;
@@ -188,6 +189,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         this.preference = preference;
         this.scroll = scroll;
         this.nowInMillis = nowInMillis;
+        this.networkTime = 0;
         this.clusterAlias = clusterAlias;
         this.originalIndices = originalIndices;
         this.readerId = readerId;
@@ -250,6 +252,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         this.aliasFilter = clone.aliasFilter;
         this.indexBoost = clone.indexBoost;
         this.nowInMillis = clone.nowInMillis;
+        this.networkTime = clone.networkTime;
         this.requestCache = clone.requestCache;
         this.clusterAlias = clone.clusterAlias;
         this.allowPartialSearchResults = clone.allowPartialSearchResults;
@@ -361,6 +364,10 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
     public long nowInMillis() {
         return nowInMillis;
     }
+
+    public long networkTime() { return networkTime; }
+
+    public void setNetworkTime(long newTime) { this.networkTime = newTime; }
 
     public Boolean requestCache() {
         return requestCache;

@@ -984,6 +984,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
      */
     @Override
     public void onRequestReceived(long requestId, String action) {
+        logger.info("+++++Request Received+++");
         if (handleIncomingRequests.get() == false) {
             throw new IllegalStateException("transport not ready yet to handle incoming requests");
         }
@@ -997,6 +998,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     @Override
     public void onRequestSent(DiscoveryNode node, long requestId, String action, TransportRequest request,
                               TransportRequestOptions options) {
+        logger.info("======Request sent++++");
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent to [{}] (timeout: [{}])", requestId, action, node, options.timeout());
         }
