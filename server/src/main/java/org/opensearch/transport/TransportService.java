@@ -825,6 +825,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     }
 
     private void sendLocalRequest(long requestId, final String action, final TransportRequest request, TransportRequestOptions options) {
+        logger.info("send local req |||||||||||||||||||");
         final DirectResponseChannel channel = new DirectResponseChannel(localNode, action, requestId, this, threadPool);
         try {
             onRequestSent(localNode, requestId, action, request, options);
@@ -999,6 +1000,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     public void onRequestSent(DiscoveryNode node, long requestId, String action, TransportRequest request,
                               TransportRequestOptions options) {
         logger.info("======Request sent++++ req = [{}], node = [{}], reqID = [{}], action = [{}]", request, node, requestId, action);
+
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent to [{}] (timeout: [{}])", requestId, action, node, options.timeout());
         }
@@ -1007,6 +1009,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
 
     @Override
     public void onResponseReceived(long requestId, Transport.ResponseContext holder) {
+        logger.info("on response received for reqID = [{}], context = [{}], holder.action = [{}], from node = [{}]", requestId, holder, holder.action(), holder.connection().getNode());
         if (holder == null) {
             checkForTimeout(requestId);
         } else if (tracerLog.isTraceEnabled() && shouldTraceAction(holder.action())) {
@@ -1018,6 +1021,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     /** called by the {@link Transport} implementation once a response was sent to calling node */
     @Override
     public void onResponseSent(long requestId, String action, TransportResponse response) {
+        logger.info("on response sent for reqID = [{}], action = [{}], response = [{}]");
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent response", requestId, action);
         }
@@ -1362,6 +1366,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
 
         @Override
         public void onRequestReceived(long requestId, String action) {
+            logger.info("req rcved, reqid = [{}]", requestId);
             for (TransportMessageListener listener : listeners) {
                 listener.onRequestReceived(requestId, action);
             }
@@ -1384,6 +1389,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
         @Override
         public void onRequestSent(DiscoveryNode node, long requestId, String action, TransportRequest request,
                                   TransportRequestOptions finalOptions) {
+            logger.info("==============req sent, req = [{}], reqID = [{}]", request, requestId);
             for (TransportMessageListener listener : listeners) {
                 listener.onRequestSent(node, requestId, action, request, finalOptions);
             }
