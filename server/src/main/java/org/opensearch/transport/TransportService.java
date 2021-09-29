@@ -1021,7 +1021,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     /** called by the {@link Transport} implementation once a response was sent to calling node */
     @Override
     public void onResponseSent(long requestId, String action, TransportResponse response) {
-        logger.info("on response sent for reqID = [{}], action = [{}], response = [{}]");
+        logger.info("on response sent for reqID = [{}], action = [{}], response = [{}]", requestId, action, response);
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent response", requestId, action);
         }
