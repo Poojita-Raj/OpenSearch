@@ -65,6 +65,7 @@ import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.node.NodeClosedException;
 import org.opensearch.node.ReportingService;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskManager;
 import org.opensearch.threadpool.Scheduler;
@@ -88,6 +89,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.lang.*;
 
 public class TransportService extends AbstractLifecycleComponent implements ReportingService<TransportInfo>, TransportMessageListener,
     TransportConnectionListener {
@@ -986,6 +988,9 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     @Override
     public void onRequestReceived(long requestId, String action) {
         logger.info("+++++Request Received+++ reqID = [{}], action = [{}]", requestId, action);
+        if (action.equals("indices:data/read/search[phase/query]")) {
+            logger.info("search action confirmed");
+        }
         if (handleIncomingRequests.get() == false) {
             throw new IllegalStateException("transport not ready yet to handle incoming requests");
         }
@@ -1000,7 +1005,9 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     public void onRequestSent(DiscoveryNode node, long requestId, String action, TransportRequest request,
                               TransportRequestOptions options) {
         logger.info("======Request sent++++ req = [{}], node = [{}], reqID = [{}], action = [{}]", request, node, requestId, action);
-
+        if (request instanceof ShardSearchRequest) {
+            ((ShardSearchRequest) request).setNetworkTime(System.currentTimeMillis());
+        }
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent to [{}] (timeout: [{}])", requestId, action, node, options.timeout());
         }
@@ -1010,6 +1017,10 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     @Override
     public void onResponseReceived(long requestId, Transport.ResponseContext holder) {
         logger.info("on response received for reqID = [{}], context = [{}], holder.action = [{}], from node = [{}]", requestId, holder, holder.action(), holder.connection().getNode());
+        logger.info("is node == localnode? [{}]", isLocalNode(holder.connection().getNode()));
+        if (! isLocalNode(holder.connection().getNode())) {
+
+        }
         if (holder == null) {
             checkForTimeout(requestId);
         } else if (tracerLog.isTraceEnabled() && shouldTraceAction(holder.action())) {
@@ -1021,6 +1032,7 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     /** called by the {@link Transport} implementation once a response was sent to calling node */
     @Override
     public void onResponseSent(long requestId, String action, TransportResponse response) {
+
         logger.info("on response sent for reqID = [{}], action = [{}], response = [{}]", requestId, action, response);
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent response", requestId, action);

@@ -56,7 +56,9 @@ import org.opensearch.search.internal.AliasFilter;
 import org.opensearch.search.internal.InternalSearchResponse;
 import org.opensearch.search.internal.SearchContext;
 import org.opensearch.search.internal.ShardSearchRequest;
+import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.transport.Transport;
+import org.opensearch.transport.TransportRequest;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -540,9 +542,9 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     }
 
     protected final SearchResponse buildSearchResponse(InternalSearchResponse internalSearchResponse, ShardSearchFailure[] failures,
-                                                       String scrollId, String searchContextId) {
+                                                       String scrollId, String searchContextId, long[] networkTimeArray) {
         return new SearchResponse(internalSearchResponse, scrollId, getNumShards(), successfulOps.get(),
-            skippedOps.get(), buildTookInMillis(), failures, clusters, searchContextId);
+            skippedOps.get(), buildTookInMillis(), failures, clusters, networkTimeArray, searchContextId);
     }
 
     boolean buildPointInTimeFromSearchResults() {
@@ -571,7 +573,19 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
                     searchContextId = null;
                 }
             }
-            listener.onResponse(buildSearchResponse(internalSearchResponse, failures, scrollId, searchContextId));
+            long[] networkTimeArray = new long[queryResults.length()];
+
+            for (int i = 0; i < queryResults.length(); i++){
+                SearchPhaseResult query_res = queryResults.get(i);
+                QuerySearchResult query_res2 = (QuerySearchResult) query_res;
+                ShardSearchRequest shard_req = query_res2.getShardSearchRequest();
+                networkTimeArray[i] = shard_req.networkTime();
+            }
+            //for (QuerySearchResult queryRes: queryResults.asList()){
+            //    ShardSearchRequest sreq = queryRes.getShardSearchRequest();
+            //    ArrayUtils.add(networkTimeArray, sreq.networkTime());
+            //}
+            listener.onResponse(buildSearchResponse(internalSearchResponse, failures, scrollId, searchContextId, networkTimeArray));
         }
     }
 

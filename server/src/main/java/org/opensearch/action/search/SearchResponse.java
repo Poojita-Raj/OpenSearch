@@ -79,6 +79,7 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
     private static final ParseField TIMED_OUT = new ParseField("timed_out");
     private static final ParseField TERMINATED_EARLY = new ParseField("terminated_early");
     private static final ParseField NUM_REDUCE_PHASES = new ParseField("num_reduce_phases");
+    private static final ParseField NETWORK_TIME_ARRAY = new ParseField("network_time_for_shards_in_millis");
 
     private final SearchResponseSections internalResponse;
     private final String scrollId;
@@ -89,6 +90,7 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
     private final ShardSearchFailure[] shardFailures;
     private final Clusters clusters;
     private final long tookInMillis;
+    private final long[] networkTimeArray;
 
     public SearchResponse(StreamInput in) throws IOException {
         super(in);
@@ -117,15 +119,21 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
         } else {
             pointInTimeId = null;
         }
+        networkTimeArray = null;
+    }
+
+    public SearchResponse(SearchResponseSections internalResponse, String scrollId, int totalShards, int successfulShards,
+                          int skippedShards, long tookInMillis, ShardSearchFailure[] shardFailures, Clusters clusters, long[] networkTimeArray) {
+        this(internalResponse, scrollId, totalShards, successfulShards, skippedShards, tookInMillis, shardFailures, clusters,networkTimeArray, null);
     }
 
     public SearchResponse(SearchResponseSections internalResponse, String scrollId, int totalShards, int successfulShards,
                           int skippedShards, long tookInMillis, ShardSearchFailure[] shardFailures, Clusters clusters) {
-        this(internalResponse, scrollId, totalShards, successfulShards, skippedShards, tookInMillis, shardFailures, clusters, null);
+        this(internalResponse, scrollId, totalShards, successfulShards, skippedShards, tookInMillis, shardFailures, clusters,null, null);
     }
 
     public SearchResponse(SearchResponseSections internalResponse, String scrollId, int totalShards, int successfulShards,
-                          int skippedShards, long tookInMillis, ShardSearchFailure[] shardFailures, Clusters clusters,
+                          int skippedShards, long tookInMillis, ShardSearchFailure[] shardFailures, Clusters clusters, long[] networkTimeArray,
                           String pointInTimeId) {
         this.internalResponse = internalResponse;
         this.scrollId = scrollId;
@@ -136,6 +144,7 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
         this.skippedShards = skippedShards;
         this.tookInMillis = tookInMillis;
         this.shardFailures = shardFailures;
+        this.networkTimeArray = networkTimeArray;
         assert skippedShards <= totalShards : "skipped: " + skippedShards + " total: " + totalShards;
         assert scrollId == null || pointInTimeId == null :
             "SearchResponse can't have both scrollId [" + scrollId + "] and searchContextId [" + pointInTimeId + "]";
@@ -287,6 +296,13 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
         if (isTerminatedEarly() != null) {
             builder.field(TERMINATED_EARLY.getPreferredName(), isTerminatedEarly());
         }
+        if (networkTimeArray != null) {
+            builder.startArray(NETWORK_TIME_ARRAY.getPreferredName());
+            for (int i = 0; i < networkTimeArray.length; i++) {
+                builder.value(networkTimeArray[i]);
+            }
+            builder.endArray();
+        }
         if (getNumReducePhases() != 1) {
             builder.field(NUM_REDUCE_PHASES.getPreferredName(), getNumReducePhases());
         }
@@ -406,8 +422,9 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
         }
         SearchResponseSections searchResponseSections = new SearchResponseSections(hits, aggs, suggest, timedOut, terminatedEarly,
                 profile, numReducePhases);
+        long[] networkTimeArray = new long[totalShards];
         return new SearchResponse(searchResponseSections, scrollId, totalShards, successfulShards, skippedShards, tookInMillis,
-                failures.toArray(ShardSearchFailure.EMPTY_ARRAY), clusters, searchContextId);
+                failures.toArray(ShardSearchFailure.EMPTY_ARRAY), clusters, networkTimeArray, searchContextId);
     }
 
     @Override

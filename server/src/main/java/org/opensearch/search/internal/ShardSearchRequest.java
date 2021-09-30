@@ -208,6 +208,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         aliasFilter = new AliasFilter(in);
         indexBoost = in.readFloat();
         nowInMillis = in.readVLong();
+        networkTime = 0;
         requestCache = in.readOptionalBoolean();
         clusterAlias = in.readOptionalString();
         if (in.getVersion().onOrAfter(LegacyESVersion.V_7_0_0)) {
@@ -286,6 +287,7 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         if (asKey == false) {
             out.writeVLong(nowInMillis);
         }
+        out.writeVLong(networkTime);
         out.writeOptionalBoolean(requestCache);
         out.writeOptionalString(clusterAlias);
         if (out.getVersion().onOrAfter(LegacyESVersion.V_7_0_0)) {

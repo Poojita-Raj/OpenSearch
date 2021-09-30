@@ -733,6 +733,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
                                       ShardSearchRequest request,
                                       SearchShardTask task,
                                       boolean includeAggregations) throws IOException {
+        logger.info("createContext:SearchService for request = {} and task = {}", request, task);
         final DefaultSearchContext context = createSearchContext(readerContext, request, defaultSearchTimeout);
         try {
             if (request.scroll() != null) {
@@ -760,6 +761,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     }
 
     public DefaultSearchContext createSearchContext(ShardSearchRequest request, TimeValue timeout) throws IOException {
+        logger.info("createSearchContext:SearchService for req = {}", request);
         final IndexService indexService = indicesService.indexServiceSafe(request.shardId().getIndex());
         final IndexShard indexShard = indexService.getShard(request.shardId().getId());
         final Engine.SearcherSupplier reader = indexShard.acquireSearcherSupplier();

@@ -417,13 +417,14 @@ public class TransportSearchAction extends HandledTransportAction<SearchRequest,
                     Map<String, ProfileShardResult> profileResults = searchResponse.getProfileResults();
                     SearchProfileShardResults profile = profileResults == null || profileResults.isEmpty()
                         ? null : new SearchProfileShardResults(profileResults);
+
                     InternalSearchResponse internalSearchResponse = new InternalSearchResponse(searchResponse.getHits(),
                         (InternalAggregations) searchResponse.getAggregations(), searchResponse.getSuggest(), profile,
                         searchResponse.isTimedOut(), searchResponse.isTerminatedEarly(), searchResponse.getNumReducePhases());
                     listener.onResponse(new SearchResponse(internalSearchResponse, searchResponse.getScrollId(),
                         searchResponse.getTotalShards(), searchResponse.getSuccessfulShards(), searchResponse.getSkippedShards(),
                         timeProvider.buildTookInMillis(), searchResponse.getShardFailures(), new SearchResponse.Clusters(1, 1, 0),
-                        searchResponse.pointInTimeId()));
+                        null, searchResponse.pointInTimeId()));
                 }
 
                 @Override
