@@ -66,6 +66,7 @@ import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.node.NodeClosedException;
 import org.opensearch.node.ReportingService;
 import org.opensearch.search.internal.ShardSearchRequest;
+import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.tasks.Task;
 import org.opensearch.tasks.TaskManager;
 import org.opensearch.threadpool.Scheduler;
@@ -1018,9 +1019,6 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     public void onResponseReceived(long requestId, Transport.ResponseContext holder) {
         logger.info("on response received for reqID = [{}], context = [{}], holder.action = [{}], from node = [{}]", requestId, holder, holder.action(), holder.connection().getNode());
         logger.info("is node == localnode? [{}]", isLocalNode(holder.connection().getNode()));
-        if (! isLocalNode(holder.connection().getNode())) {
-
-        }
         if (holder == null) {
             checkForTimeout(requestId);
         } else if (tracerLog.isTraceEnabled() && shouldTraceAction(holder.action())) {
@@ -1034,6 +1032,10 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
     public void onResponseSent(long requestId, String action, TransportResponse response) {
 
         logger.info("on response sent for reqID = [{}], action = [{}], response = [{}]", requestId, action, response);
+        if (response instanceof QuerySearchResult && action.equals("indices:data/read/search[phase/query]")) {
+            ((QuerySearchResult) response).getShardSearchRequest().setNetworkTime( ((QuerySearchResult) response).getShardSearchRequest().networkTime() - System.currentTimeMillis());
+            logger.info("return and n/w time updated");
+        }
         if (tracerLog.isTraceEnabled() && shouldTraceAction(action)) {
             tracerLog.trace("[{}][{}] sent response", requestId, action);
         }
@@ -1277,6 +1279,10 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             service.onResponseSent(requestId, action, response);
             final TransportResponseHandler handler = service.responseHandlers.onResponseReceived(requestId, service);
             // ignore if its null, the service logs it
+            logger.info("sendResponse - final update to  n/w time", this.localNode);
+            if (response instanceof QuerySearchResult) {
+                ((QuerySearchResult) response).getShardSearchRequest().setNetworkTime(((QuerySearchResult) response).getShardSearchRequest().networkTime() + System.currentTimeMillis());
+            }
             if (handler != null) {
                 final String executor = handler.executor();
                 if (ThreadPool.Names.SAME.equals(executor)) {

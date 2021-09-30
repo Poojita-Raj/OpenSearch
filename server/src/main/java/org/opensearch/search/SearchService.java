@@ -438,6 +438,7 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private SearchPhaseResult executeQueryPhase(ShardSearchRequest request,
                                                 SearchShardTask task,
                                                 boolean keepStatesInContext) throws Exception {
+
         final ReaderContext readerContext = createOrGetReaderContext(request, keepStatesInContext);
         try (Releasable ignored = readerContext.markAsUsed(getKeepAlive(request));
                 SearchContext context = createContext(readerContext, request, task, true)) {
