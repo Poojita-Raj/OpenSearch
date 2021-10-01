@@ -1281,7 +1281,11 @@ public class TransportService extends AbstractLifecycleComponent implements Repo
             // ignore if its null, the service logs it
             logger.info("sendResponse - final update to  n/w time", this.localNode);
             if (response instanceof QuerySearchResult) {
-                ((QuerySearchResult) response).getShardSearchRequest().setNetworkTime(((QuerySearchResult) response).getShardSearchRequest().networkTime() + System.currentTimeMillis());
+                if (getChannelType().equals("direct")) {
+                    ((QuerySearchResult) response).getShardSearchRequest().setNetworkTime(0);
+                } else {
+                    ((QuerySearchResult) response).getShardSearchRequest().setNetworkTime(((QuerySearchResult) response).getShardSearchRequest().networkTime() + System.currentTimeMillis());
+                }
             }
             if (handler != null) {
                 final String executor = handler.executor();

@@ -79,6 +79,11 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
     private static final ParseField TIMED_OUT = new ParseField("timed_out");
     private static final ParseField TERMINATED_EARLY = new ParseField("terminated_early");
     private static final ParseField NUM_REDUCE_PHASES = new ParseField("num_reduce_phases");
+    private static final ParseField NETWORK_TIME = new ParseField("network_time");
+    private static final ParseField AVERAGE_NETWORK_RTT = new ParseField("average_network_round_trip_time_in_millis");
+    private static final ParseField LONGEST_NETWORK_RTT_TIME = new ParseField("longest_network_round_trip_time_in_millis");
+    private static final ParseField LONGEST_NETWORK_RTT_SHARD = new ParseField("longest_network_round_trip_time_shard_number");
+    private static final ParseField LONGEST_NETWORK_RTT = new ParseField("longest_network_round_trip_time");
     private static final ParseField NETWORK_TIME_ARRAY = new ParseField("network_time_for_shards_in_millis");
 
     private final SearchResponseSections internalResponse;
@@ -296,12 +301,24 @@ public class SearchResponse extends ActionResponse implements StatusToXContentOb
         if (isTerminatedEarly() != null) {
             builder.field(TERMINATED_EARLY.getPreferredName(), isTerminatedEarly());
         }
+        builder.startObject(NETWORK_TIME.getPreferredName()).startArray(NETWORK_TIME_ARRAY.getPreferredName());
         if (networkTimeArray != null) {
-            builder.startArray(NETWORK_TIME_ARRAY.getPreferredName());
+            long sum = 0, max = 0, maxpos = 0;
             for (int i = 0; i < networkTimeArray.length; i++) {
                 builder.value(networkTimeArray[i]);
+                sum = sum + networkTimeArray[i];
+                if (networkTimeArray[i] > max) {
+                    max = networkTimeArray[i];
+                    maxpos = i;
+                }
             }
             builder.endArray();
+            builder.field(AVERAGE_NETWORK_RTT.getPreferredName(), sum / networkTimeArray.length);
+            builder.startObject(LONGEST_NETWORK_RTT.getPreferredName());
+            builder.field(LONGEST_NETWORK_RTT_TIME.getPreferredName(), max);
+            builder.field(LONGEST_NETWORK_RTT_SHARD.getPreferredName(), maxpos);
+            builder.endObject();
+            builder.endObject();
         }
         if (getNumReducePhases() != 1) {
             builder.field(NUM_REDUCE_PHASES.getPreferredName(), getNumReducePhases());
