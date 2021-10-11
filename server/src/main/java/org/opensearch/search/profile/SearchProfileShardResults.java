@@ -74,6 +74,7 @@ public final class SearchProfileShardResults implements Writeable, ToXContentFra
     private Map<String, ProfileShardResult> shardResults;
 
     public SearchProfileShardResults(Map<String, ProfileShardResult> shardResults) {
+        logger.info("actually called\n\n\n\n");
         this.shardResults =  Collections.unmodifiableMap(shardResults);
     }
 
@@ -111,8 +112,8 @@ public final class SearchProfileShardResults implements Writeable, ToXContentFra
         for (String key : sortedKeys) {
             builder.startObject();
             builder.field(ID_FIELD, key);
-            //builder.field(INBOUND_NETWORK_FIELD, shardResults.get(key).getInboundNetworkTime());
-            //builder.field(OUTBOUND_NETWORK_FIELD,shardResults.get(key).getOutboundNetworkTime());
+            builder.field(INBOUND_NETWORK_FIELD, shardResults.get(key).getInboundNetworkTime());
+            builder.field(OUTBOUND_NETWORK_FIELD,shardResults.get(key).getOutboundNetworkTime());
             builder.field(ROUND_TRIP_NETWORK_FIELD,shardResults.get(key).getInboundNetworkTime() + shardResults.get(key).getOutboundNetworkTime());
             builder.startArray(SEARCHES_FIELD);
             ProfileShardResult profileShardResult = shardResults.get(key);
