@@ -169,7 +169,9 @@ public class QueryPhase {
 
         if (searchContext.getProfilers() != null) {
             ProfileShardResult shardResults = SearchProfileShardResults.buildShardResults(
-                searchContext.getProfilers(), searchContext.request());
+                searchContext.getProfilers(),
+                searchContext.request()
+            );
             searchContext.queryResult().profileResults(shardResults);
         }
     }

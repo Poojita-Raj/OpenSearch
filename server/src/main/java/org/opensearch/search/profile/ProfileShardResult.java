@@ -54,8 +54,12 @@ public class ProfileShardResult implements Writeable {
 
     private long outboundNetworkTime;
 
-    public ProfileShardResult(List<QueryProfileShardResult> queryProfileResults, AggregationProfileShardResult aggProfileShardResult,
-                              long inboundNetworkTime, long outboundNetworkTime ) {
+    public ProfileShardResult(
+        List<QueryProfileShardResult> queryProfileResults,
+        AggregationProfileShardResult aggProfileShardResult,
+        long inboundNetworkTime,
+        long outboundNetworkTime
+    ) {
         this.aggProfileShardResult = aggProfileShardResult;
         this.queryProfileResults = Collections.unmodifiableList(queryProfileResults);
         this.inboundNetworkTime = inboundNetworkTime;
@@ -98,12 +102,20 @@ public class ProfileShardResult implements Writeable {
         return aggProfileShardResult;
     }
 
-    public long getInboundNetworkTime() { return inboundNetworkTime; }
+    public long getInboundNetworkTime() {
+        return inboundNetworkTime;
+    }
 
-    public void setInboundNetworkTime(long newTime) { this.inboundNetworkTime = newTime; }
+    public void setInboundNetworkTime(long newTime) {
+        this.inboundNetworkTime = newTime;
+    }
 
-    public long getOutboundNetworkTime() { return outboundNetworkTime; }
+    public long getOutboundNetworkTime() {
+        return outboundNetworkTime;
+    }
 
-    public void setOutboundNetworkTime(long newTime) { this.outboundNetworkTime = newTime; }
+    public void setOutboundNetworkTime(long newTime) {
+        this.outboundNetworkTime = newTime;
+    }
 
 }

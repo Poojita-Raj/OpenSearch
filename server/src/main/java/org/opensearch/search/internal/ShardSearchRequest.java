@@ -410,13 +410,21 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
         return nowInMillis;
     }
 
-    public long getInboundNetworkTime() { return inboundNetworkTime; }
+    public long getInboundNetworkTime() {
+        return inboundNetworkTime;
+    }
 
-    public void setInboundNetworkTime(long newTime) { this.inboundNetworkTime = newTime; }
+    public void setInboundNetworkTime(long newTime) {
+        this.inboundNetworkTime = newTime;
+    }
 
-    public long getOutboundNetworkTime() { return outboundNetworkTime; }
+    public long getOutboundNetworkTime() {
+        return outboundNetworkTime;
+    }
 
-    public void setOutboundNetworkTime(long newTime) { this.outboundNetworkTime = newTime; }
+    public void setOutboundNetworkTime(long newTime) {
+        this.outboundNetworkTime = newTime;
+    }
 
     public Boolean requestCache() {
         return requestCache;

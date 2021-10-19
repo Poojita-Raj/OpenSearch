@@ -70,8 +70,10 @@ public final class SearchExecutionStatsCollector implements ActionListener<Searc
         if (response.getShardSearchRequest() != null) {
             if (response.remoteAddress() != null) {
                 // update outbound network time for request sent over network for shard requests
-                response.getShardSearchRequest().setOutboundNetworkTime(
-                    Math.max(0, System.currentTimeMillis() - response.getShardSearchRequest().getOutboundNetworkTime()));
+                response.getShardSearchRequest()
+                    .setOutboundNetworkTime(
+                        Math.max(0, System.currentTimeMillis() - response.getShardSearchRequest().getOutboundNetworkTime())
+                    );
             } else {
                 // reset inbound and outbound network time to 0 for local request for shard requests
                 response.getShardSearchRequest().setOutboundNetworkTime(0);

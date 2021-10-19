@@ -108,9 +108,11 @@ public final class SearchProfileShardResults implements Writeable, ToXContentFra
             builder.startObject();
             builder.field(ID_FIELD, key);
             builder.field(INBOUND_NETWORK_FIELD, shardResults.get(key).getInboundNetworkTime());
-            builder.field(OUTBOUND_NETWORK_FIELD,shardResults.get(key).getOutboundNetworkTime());
-            builder.field(ROUND_TRIP_NETWORK_FIELD,shardResults.get(key).getInboundNetworkTime()
-                + shardResults.get(key).getOutboundNetworkTime());
+            builder.field(OUTBOUND_NETWORK_FIELD, shardResults.get(key).getOutboundNetworkTime());
+            builder.field(
+                ROUND_TRIP_NETWORK_FIELD,
+                shardResults.get(key).getInboundNetworkTime() + shardResults.get(key).getOutboundNetworkTime()
+            );
             builder.startArray(SEARCHES_FIELD);
             ProfileShardResult profileShardResult = shardResults.get(key);
             for (QueryProfileShardResult result : profileShardResult.getQueryProfileResults()) {
@@ -181,8 +183,10 @@ public final class SearchProfileShardResults implements Writeable, ToXContentFra
                 parser.skipChildren();
             }
         }
-        searchProfileResults.put(id, new ProfileShardResult(queryProfileResults,
-            aggProfileShardResult, inboundNetworkTime, outboundNetworkTime));
+        searchProfileResults.put(
+            id,
+            new ProfileShardResult(queryProfileResults, aggProfileShardResult, inboundNetworkTime, outboundNetworkTime)
+        );
     }
 
     /**
