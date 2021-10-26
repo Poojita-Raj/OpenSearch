@@ -70,6 +70,7 @@ import org.opensearch.indices.breaker.CircuitBreakerService;
 import org.opensearch.monitor.jvm.JvmInfo;
 import org.opensearch.node.Node;
 import org.opensearch.rest.RestStatus;
+import org.opensearch.search.internal.ShardSearchRequest;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -306,6 +307,9 @@ public abstract class TcpTransport extends AbstractLifecycleComponent implements
                 throw new NodeNotConnectedException(node, "connection already closed");
             }
             TcpChannel channel = channel(options.type());
+            if (node.getHostAddress().equals("127.0.0.1") && (request instanceof ShardSearchRequest)) {
+                ((ShardSearchRequest)request).setInboundNetworkTime(0);
+            }
             outboundHandler.sendRequest(node, channel, requestId, action, request, options, getVersion(), compress, false);
         }
     }

@@ -189,6 +189,9 @@ public class SearchTransportService {
     ) {
         // we optimize this and expect a QueryFetchSearchResult if we only have a single shard in the search request
         // this used to be the QUERY_AND_FETCH which doesn't exist anymore.
+        if (connection.getNode().getHostAddress().equals("127.0.0.1")) {
+            request.setInboundNetworkTime(0);
+        }
         final boolean fetchDocuments = request.numberOfShards() == 1;
         Writeable.Reader<SearchPhaseResult> reader = fetchDocuments ? QueryFetchSearchResult::new : QuerySearchResult::new;
 

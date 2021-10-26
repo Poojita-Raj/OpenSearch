@@ -122,8 +122,13 @@ class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPh
     ) {
         ShardSearchRequest request = rewriteShardSearchRequest(super.buildShardSearchRequest(shardIt));
         // update inbound network time with current time before sending request over n/w to data node
+        //if (request != null && (request.remoteAddress() != null && (
+        //    !request.remoteAddress().toString().substring(0,9).equals("127.0.0.1")
+        //    ))) {
         if (request != null) {
-            request.setInboundNetworkTime(System.currentTimeMillis());
+            if (!(request.remoteAddress() == null || (request.remoteAddress() != null && request.remoteAddress().toString().substring(0, 9).equals("127.0.0.1")))) {
+                request.setInboundNetworkTime(System.currentTimeMillis());
+            }
         }
         getSearchTransport().sendExecuteQuery(getConnection(shard.getClusterAlias(), shard.getNodeId()), request, getTask(), listener);
     }
