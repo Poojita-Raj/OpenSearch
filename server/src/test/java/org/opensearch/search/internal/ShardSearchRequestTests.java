@@ -208,6 +208,8 @@ public class ShardSearchRequestTests extends AbstractSearchTestCase {
         assertArrayEquals(orig.indices(), copy.indices());
         assertEquals(orig.indicesOptions(), copy.indicesOptions());
         assertEquals(orig.nowInMillis(), copy.nowInMillis());
+        assertEquals(orig.getInboundNetworkTime(), copy.getInboundNetworkTime());
+        assertEquals(orig.getOutboundNetworkTime(), copy.getOutboundNetworkTime());
         assertEquals(orig.source(), copy.source());
         assertEquals(orig.searchType(), copy.searchType());
         assertEquals(orig.shardId(), copy.shardId());
