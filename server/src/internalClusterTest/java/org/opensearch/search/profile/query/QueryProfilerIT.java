@@ -32,6 +32,8 @@
 
 package org.opensearch.search.profile.query;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.English;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.search.MultiSearchResponse;
@@ -47,6 +49,8 @@ import org.opensearch.search.profile.ProfileResult;
 import org.opensearch.search.profile.ProfileShardResult;
 import org.opensearch.search.sort.SortOrder;
 import org.opensearch.test.OpenSearchIntegTestCase;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -54,15 +58,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.*;
 import static org.opensearch.search.profile.query.RandomQueryGenerator.randomQueryBuilder;
-import static org.hamcrest.Matchers.emptyOrNullString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 
 public class QueryProfilerIT extends OpenSearchIntegTestCase {
-
+    private static final Logger logger1 = LogManager.getLogger(QueryProfilerIT.class);
     /**
      * This test simply checks to make sure nothing crashes.  Test indexes 100-150 documents,
      * constructs 20-100 random queries and tries to profile them
@@ -86,7 +86,7 @@ public class QueryProfilerIT extends OpenSearchIntegTestCase {
         int iters = between(20, 100);
         for (int i = 0; i < iters; i++) {
             QueryBuilder q = randomQueryBuilder(stringFields, numericFields, numDocs, 3);
-            logger.info("Query: {}", q);
+            System.out.printf("Query: {}", q);
 
             SearchResponse resp = client().prepareSearch()
                 .setQuery(q)
@@ -94,10 +94,19 @@ public class QueryProfilerIT extends OpenSearchIntegTestCase {
                 .setProfile(true)
                 .setSearchType(SearchType.QUERY_THEN_FETCH)
                 .get();
-
+            System.out.printf("response = {}", resp);
+            System.out.printf("client = {} {}", client(), client().settings());
             assertNotNull("Profile response element should not be null", resp.getProfileResults());
             assertThat("Profile response should not be an empty array", resp.getProfileResults().size(), not(0));
             for (Map.Entry<String, ProfileShardResult> shard : resp.getProfileResults().entrySet()) {
+                System.out.printf("shard key = {}",shard.getKey());
+                Matcher m = Pattern.compile("/\\[(.*?)\\]/").matcher(shard.getKey());
+                while (m.find()) {
+                    System.out.println(m.group(1));
+                }
+
+                assertThat(shard.getValue().getInboundNetworkTime(), greaterThanOrEqualTo(0L));
+                assertThat(shard.getValue().getOutboundNetworkTime(), greaterThanOrEqualTo(0L));
                 for (QueryProfileShardResult searchProfiles : shard.getValue().getQueryProfileResults()) {
                     for (ProfileResult result : searchProfiles.getQueryResults()) {
                         assertNotNull(result.getQueryName());
