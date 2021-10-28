@@ -6,7 +6,7 @@
  * compatible open source license.
  */
 
-package org.opensearch.search.profile.query;
+package org.opensearch.search.profile;
 
 import org.apache.lucene.util.English;
 import org.opensearch.action.index.IndexRequestBuilder;
@@ -17,14 +17,13 @@ import java.util.List;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.search.SearchType;
 import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.search.profile.ProfileShardResult;
 
 import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
 import static org.opensearch.search.profile.query.RandomQueryGenerator.randomQueryBuilder;
 
-public class profilerSingleNodeNetworkTest extends OpenSearchSingleNodeTestCase {
+public class ProfileSingleNodeNetworkTest extends OpenSearchSingleNodeTestCase{
 
     public void testProfilerNetworkTime() throws Exception {
         createIndex("test");
