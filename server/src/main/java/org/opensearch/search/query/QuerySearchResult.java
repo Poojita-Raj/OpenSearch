@@ -255,6 +255,11 @@ public final class QuerySearchResult extends SearchPhaseResult {
         return hasProfileResults;
     }
 
+    public void setNetworkTime(long inboundTime, long outboundTime) {
+        this.profileShardResults.setInboundNetworkTime(inboundTime);
+        this.profileShardResults.setOutboundNetworkTime(outboundTime);
+    }
+
     public void consumeAll() {
         if (hasProfileResults()) {
             consumeProfileResult();

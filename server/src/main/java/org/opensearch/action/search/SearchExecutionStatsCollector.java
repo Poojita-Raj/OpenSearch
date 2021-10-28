@@ -74,10 +74,14 @@ public final class SearchExecutionStatsCollector implements ActionListener<Searc
                     .setOutboundNetworkTime(
                         Math.max(0, System.currentTimeMillis() - response.getShardSearchRequest().getOutboundNetworkTime())
                     );
+                queryResult.setNetworkTime(0,
+                    Math.max(0, System.currentTimeMillis() - response.getShardSearchRequest().getOutboundNetworkTime())
+                );
             } else {
                 // reset inbound and outbound network time to 0 for local request for shard requests
                 response.getShardSearchRequest().setOutboundNetworkTime(0);
                 response.getShardSearchRequest().setInboundNetworkTime(0);
+                queryResult.setNetworkTime(0,0);
             }
         }
         if (nodeId != null && queryResult != null) {

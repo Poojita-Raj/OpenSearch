@@ -9,6 +9,7 @@
 package org.opensearch.search.profile;
 
 import org.apache.lucene.util.English;
+import org.opensearch.Version;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.test.OpenSearchSingleNodeTestCase;
 
