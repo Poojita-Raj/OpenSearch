@@ -86,7 +86,6 @@ public class QueryProfilerIT extends OpenSearchIntegTestCase {
         int iters = between(20, 100);
         for (int i = 0; i < iters; i++) {
             QueryBuilder q = randomQueryBuilder(stringFields, numericFields, numDocs, 3);
-            System.out.printf("Query: {}", q);
 
             SearchResponse resp = client().prepareSearch()
                 .setQuery(q)
@@ -94,19 +93,12 @@ public class QueryProfilerIT extends OpenSearchIntegTestCase {
                 .setProfile(true)
                 .setSearchType(SearchType.QUERY_THEN_FETCH)
                 .get();
-            System.out.printf("response = {}", resp);
-            System.out.printf("client = {} {}", client(), client().settings());
+
             assertNotNull("Profile response element should not be null", resp.getProfileResults());
             assertThat("Profile response should not be an empty array", resp.getProfileResults().size(), not(0));
             for (Map.Entry<String, ProfileShardResult> shard : resp.getProfileResults().entrySet()) {
-                System.out.printf("shard key = {}",shard.getKey());
-                Matcher m = Pattern.compile("/\\[(.*?)\\]/").matcher(shard.getKey());
-                while (m.find()) {
-                    System.out.println(m.group(1));
-                }
-
-                assertThat(shard.getValue().getInboundNetworkTime(), greaterThanOrEqualTo(0L));
-                assertThat(shard.getValue().getOutboundNetworkTime(), greaterThanOrEqualTo(0L));
+                assertThat("Profile response inbound network time should not be negative", shard.getValue().getInboundNetworkTime(), greaterThanOrEqualTo(0L));
+                assertThat("Profile response outbound network time should not be negative", shard.getValue().getOutboundNetworkTime(), greaterThanOrEqualTo(0L));
                 for (QueryProfileShardResult searchProfiles : shard.getValue().getQueryProfileResults()) {
                     for (ProfileResult result : searchProfiles.getQueryResults()) {
                         assertNotNull(result.getQueryName());
