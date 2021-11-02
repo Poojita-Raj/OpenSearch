@@ -36,11 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.English;
 import org.opensearch.action.index.IndexRequestBuilder;
-import org.opensearch.action.search.MultiSearchResponse;
-import org.opensearch.action.search.SearchRequestBuilder;
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.action.search.SearchType;
-import org.opensearch.action.search.ShardSearchFailure;
+import org.opensearch.action.search.*;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
@@ -49,14 +45,8 @@ import org.opensearch.search.profile.ProfileResult;
 import org.opensearch.search.profile.ProfileShardResult;
 import org.opensearch.search.sort.SortOrder;
 import org.opensearch.test.OpenSearchIntegTestCase;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.hamcrest.Matchers.*;
 import static org.opensearch.search.profile.query.RandomQueryGenerator.randomQueryBuilder;
@@ -97,8 +87,8 @@ public class QueryProfilerIT extends OpenSearchIntegTestCase {
             assertNotNull("Profile response element should not be null", resp.getProfileResults());
             assertThat("Profile response should not be an empty array", resp.getProfileResults().size(), not(0));
             for (Map.Entry<String, ProfileShardResult> shard : resp.getProfileResults().entrySet()) {
-                assertThat("Profile response inbound network time should not be negative", shard.getValue().getInboundNetworkTime(), greaterThanOrEqualTo(0L));
-                assertThat("Profile response outbound network time should not be negative", shard.getValue().getOutboundNetworkTime(), greaterThanOrEqualTo(0L));
+                assertThat("Profile response inbound network time should not be negative", shard.getValue().getInboundNetworkTime(), is(0L));
+                assertThat("Profile response outbound network time should not be negative", shard.getValue().getOutboundNetworkTime(), is(0L));
                 for (QueryProfileShardResult searchProfiles : shard.getValue().getQueryProfileResults()) {
                     for (ProfileResult result : searchProfiles.getQueryResults()) {
                         assertNotNull(result.getQueryName());
