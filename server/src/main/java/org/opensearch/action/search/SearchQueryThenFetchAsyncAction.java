@@ -32,6 +32,7 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.TopFieldDocs;
 import org.opensearch.action.ActionListener;
@@ -51,7 +52,7 @@ import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
 
 class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPhaseResult> {
-
+    private static final Logger logger = LogManager.getLogger(SearchQueryThenFetchAsyncAction.class);
     private final SearchPhaseController searchPhaseController;
     private final SearchProgressListener progressListener;
 
@@ -126,6 +127,7 @@ class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPh
         //    !request.remoteAddress().toString().substring(0,9).equals("127.0.0.1")
         //    ))) {
         if (request != null) {
+            logger.info("remote add = {}", request.remoteAddress().toString());
             if (!(request.remoteAddress() == null || (request.remoteAddress() != null && request.remoteAddress().toString().substring(0, 9).equals("127.0.0.1")))) {
                 request.setInboundNetworkTime(System.currentTimeMillis());
             }
