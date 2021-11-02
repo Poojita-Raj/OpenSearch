@@ -127,7 +127,11 @@ class SearchQueryThenFetchAsyncAction extends AbstractSearchAsyncAction<SearchPh
         //    !request.remoteAddress().toString().substring(0,9).equals("127.0.0.1")
         //    ))) {
         if (request != null) {
-            logger.info("remote add = {}", request.remoteAddress().toString());
+            if (request.remoteAddress() == null){
+                logger.info("remote address = null");
+            } else {
+                logger.info("remote add = {}", request.remoteAddress().toString());
+            }
             if (!(request.remoteAddress() == null || (request.remoteAddress() != null && request.remoteAddress().toString().substring(0, 9).equals("127.0.0.1")))) {
                 request.setInboundNetworkTime(System.currentTimeMillis());
             }
