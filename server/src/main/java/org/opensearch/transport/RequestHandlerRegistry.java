@@ -83,6 +83,9 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
         final Task task = taskManager.register(channel.getChannelType(), action, request);
         Releasable unregisterTask = () -> taskManager.unregister(task);
         try {
+            if (request instanceof ShardSearchRequest) {
+                int a = 10;
+            }
             if (channel instanceof TcpTransportChannel && task instanceof CancellableTask) {
                 if (request instanceof ShardSearchRequest) {
                     // on receiving request, update the inbound network time to reflect time spent in transit over the network
@@ -93,6 +96,10 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
                 final TcpChannel tcpChannel = ((TcpTransportChannel) channel).getChannel();
                 final Releasable stopTracking = taskManager.startTrackingCancellableChannelTask(tcpChannel, (CancellableTask) task);
                 unregisterTask = Releasables.wrap(unregisterTask, stopTracking);
+            } else if (channel instanceof TransportService.DirectResponseChannel) {
+                if (request instanceof ShardSearchRequest) {
+                    ((ShardSearchRequest) request).setInboundNetworkTime(0);
+                }
             }
             final TaskTransportChannel taskTransportChannel = new TaskTransportChannel(channel, unregisterTask);
             handler.messageReceived(request, taskTransportChannel, task);
