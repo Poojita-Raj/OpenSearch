@@ -32,8 +32,6 @@
 
 package org.opensearch.transport;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.lease.Releasable;
@@ -46,7 +44,6 @@ import org.opensearch.tasks.TaskManager;
 import java.io.IOException;
 
 public class RequestHandlerRegistry<Request extends TransportRequest> {
-    private static final Logger logger = LogManager.getLogger(RequestHandlerRegistry.class);
     private final String action;
     private final TransportRequestHandler<Request> handler;
     private final boolean forceExecution;
@@ -85,13 +82,9 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
         final Task task = taskManager.register(channel.getChannelType(), action, request);
         Releasable unregisterTask = () -> taskManager.unregister(task);
         try {
-            if (request instanceof ShardSearchRequest) {
-                int a = 10;
-            }
             if (channel instanceof TcpTransportChannel && task instanceof CancellableTask) {
                 if (request instanceof ShardSearchRequest) {
                     // on receiving request, update the inbound network time to reflect time spent in transit over the network
-                    logger.info("TcpTransportChannel shard req {}", ((ShardSearchRequest) request).shardId());
                     ((ShardSearchRequest) request).setInboundNetworkTime(
                         Math.max(0, System.currentTimeMillis() - ((ShardSearchRequest) request).getInboundNetworkTime())
                     );
@@ -99,11 +92,6 @@ public class RequestHandlerRegistry<Request extends TransportRequest> {
                 final TcpChannel tcpChannel = ((TcpTransportChannel) channel).getChannel();
                 final Releasable stopTracking = taskManager.startTrackingCancellableChannelTask(tcpChannel, (CancellableTask) task);
                 unregisterTask = Releasables.wrap(unregisterTask, stopTracking);
-            } else if (channel instanceof TransportService.DirectResponseChannel) {
-                if (request instanceof ShardSearchRequest) {
-                    logger.info("DirectResponseChannel shard req {}", ((ShardSearchRequest) request).shardId());
-                    ((ShardSearchRequest) request).setInboundNetworkTime(0);
-                }
             }
             final TaskTransportChannel taskTransportChannel = new TaskTransportChannel(channel, unregisterTask);
             handler.messageReceived(request, taskTransportChannel, task);

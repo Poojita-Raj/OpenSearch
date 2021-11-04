@@ -32,6 +32,8 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.LegacyESVersion;
 import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
@@ -49,11 +51,7 @@ import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.search.SearchPhaseResult;
 import org.opensearch.search.SearchService;
 import org.opensearch.search.dfs.DfsSearchResult;
-import org.opensearch.search.fetch.FetchSearchResult;
-import org.opensearch.search.fetch.QueryFetchSearchResult;
-import org.opensearch.search.fetch.ScrollQueryFetchSearchResult;
-import org.opensearch.search.fetch.ShardFetchRequest;
-import org.opensearch.search.fetch.ShardFetchSearchRequest;
+import org.opensearch.search.fetch.*;
 import org.opensearch.search.internal.InternalScrollSearchRequest;
 import org.opensearch.search.internal.ShardSearchContextId;
 import org.opensearch.search.internal.ShardSearchRequest;
@@ -61,14 +59,7 @@ import org.opensearch.search.query.QuerySearchRequest;
 import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.search.query.ScrollQuerySearchResult;
 import org.opensearch.threadpool.ThreadPool;
-import org.opensearch.transport.RemoteClusterService;
-import org.opensearch.transport.Transport;
-import org.opensearch.transport.TransportActionProxy;
-import org.opensearch.transport.TransportException;
-import org.opensearch.transport.TransportRequest;
-import org.opensearch.transport.TransportRequestOptions;
-import org.opensearch.transport.TransportResponse;
-import org.opensearch.transport.TransportService;
+import org.opensearch.transport.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -81,7 +72,7 @@ import java.util.function.BiFunction;
  * transport.
  */
 public class SearchTransportService {
-
+    private static final Logger logger = LogManager.getLogger(SearchTransportService.class);
     public static final String FREE_CONTEXT_SCROLL_ACTION_NAME = "indices:data/read/search[free_context/scroll]";
     public static final String FREE_CONTEXT_ACTION_NAME = "indices:data/read/search[free_context]";
     public static final String CLEAR_SCROLL_CONTEXTS_ACTION_NAME = "indices:data/read/search[clear_scroll_contexts]";
@@ -189,6 +180,7 @@ public class SearchTransportService {
     ) {
         // we optimize this and expect a QueryFetchSearchResult if we only have a single shard in the search request
         // this used to be the QUERY_AND_FETCH which doesn't exist anymore.
+        logger.info("HOST ADDRESS: {}\n\n\n",connection.getNode().getHostAddress());
         if (connection.getNode().getHostAddress().equals("127.0.0.1")) {
             request.setInboundNetworkTime(0);
         }
