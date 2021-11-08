@@ -32,9 +32,12 @@
 
 package org.opensearch.action.search;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.action.ActionListener;
 import org.opensearch.node.ResponseCollectorService;
 import org.opensearch.search.SearchPhaseResult;
+import org.opensearch.search.fetch.QueryFetchSearchResult;
 import org.opensearch.search.query.QuerySearchResult;
 import org.opensearch.transport.Transport;
 
@@ -48,6 +51,7 @@ import java.util.function.BiFunction;
  */
 public final class SearchExecutionStatsCollector implements ActionListener<SearchPhaseResult> {
 
+    private static final Logger logger = LogManager.getLogger(SearchExecutionStatsCollector.class);
     private final ActionListener<SearchPhaseResult> listener;
     private final String nodeId;
     private final ResponseCollectorService collector;
@@ -66,6 +70,10 @@ public final class SearchExecutionStatsCollector implements ActionListener<Searc
 
     @Override
     public void onResponse(SearchPhaseResult response) {
+        if (response instanceof QueryFetchSearchResult) {
+            response.queryResult().getShardSearchRequest().setOutboundNetworkTime(0);
+            response.queryResult().getShardSearchRequest().setInboundNetworkTime(0);
+        }
         QuerySearchResult queryResult = response.queryResult();
         if (response.getShardSearchRequest() != null) {
             if (response.remoteAddress() != null) {
