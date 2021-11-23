@@ -304,6 +304,11 @@ public class OpenSearchLoggerUsageChecker {
                             argumentTypes[1].equals(STRING_CLASS) &&
                             argumentTypes[2].equals(OBJECT_ARRAY_CLASS)) {
                             checkArrayArgs(methodNode, logMessageFrames[i], arraySizeFrames[i], lineNumber, methodInsn, 0, 2);
+                        } else if (argumentTypes.length == 3 &&
+                            argumentTypes[0].equals(STRING_CLASS) &&
+                            argumentTypes[1].equals(STRING_ARRAY_CLASS) &&
+                            argumentTypes[2].equals(THROWABLE_CLASS)) {
+                            checkArrayArgs(methodNode, logMessageFrames[i], arraySizeFrames[i], lineNumber, methodInsn, 0, 1);
                         }
                     }else if (objectType.equals(PARAMETERIZED_MESSAGE_CLASS)) {
                         Type[] argumentTypes = Type.getArgumentTypes(methodInsn.desc);
