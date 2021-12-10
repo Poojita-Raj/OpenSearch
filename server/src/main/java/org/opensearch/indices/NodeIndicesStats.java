@@ -44,6 +44,7 @@ import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.index.Index;
 import org.opensearch.index.cache.query.QueryCacheStats;
 import org.opensearch.index.cache.request.RequestCacheStats;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.engine.SegmentsStats;
 import org.opensearch.index.fielddata.FieldDataStats;
 import org.opensearch.index.flush.FlushStats;
@@ -184,6 +185,9 @@ public class NodeIndicesStats implements Writeable, ToXContentFragment {
     public RecoveryStats getRecoveryStats() {
         return stats.getRecoveryStats();
     }
+
+    @Nullable
+    public CorruptionStats getCorruptionStats() { return stats.getCorruptionStats(); }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {

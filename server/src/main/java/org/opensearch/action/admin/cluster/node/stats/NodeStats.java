@@ -117,6 +117,9 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
     @Nullable
     private ShardIndexingPressureStats shardIndexingPressureStats;
 
+    //@Nullable
+    //private CorruptionStats corruptionStats;
+
     public NodeStats(StreamInput in) throws IOException {
         super(in);
         timestamp = in.readVLong();
@@ -154,8 +157,10 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         }
         if (in.getVersion().onOrAfter(Version.V_1_2_0)) {
             shardIndexingPressureStats = in.readOptionalWriteable(ShardIndexingPressureStats::new);
+            //corruptionStats = in.readOptionalWriteable(CorruptionStats::new);
         } else {
             shardIndexingPressureStats = null;
+            //corruptionStats = null;
         }
 
     }
@@ -179,6 +184,7 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         @Nullable ScriptCacheStats scriptCacheStats,
         @Nullable IndexingPressureStats indexingPressureStats,
         @Nullable ShardIndexingPressureStats shardIndexingPressureStats
+        //@Nullable CorruptionStats corruptionStats
     ) {
         super(node);
         this.timestamp = timestamp;
@@ -198,6 +204,7 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         this.scriptCacheStats = scriptCacheStats;
         this.indexingPressureStats = indexingPressureStats;
         this.shardIndexingPressureStats = shardIndexingPressureStats;
+        //this.corruptionStats = corruptionStats;
     }
 
     public long getTimestamp() {
@@ -307,6 +314,9 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         return shardIndexingPressureStats;
     }
 
+    //@Nullable
+    //public CorruptionStats getCorruptionStats() { return corruptionStats; }
+
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
@@ -339,6 +349,7 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         }
         if (out.getVersion().onOrAfter(Version.V_1_2_0)) {
             out.writeOptionalWriteable(shardIndexingPressureStats);
+            //out.writeOptionalWriteable(corruptionStats);
         }
     }
 
@@ -412,6 +423,9 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         if (getShardIndexingPressureStats() != null) {
             getShardIndexingPressureStats().toXContent(builder, params);
         }
+        //if (getCorruptionStats() != null) {
+        //    getCorruptionStats().toXContent(builder, params);
+        //}
         return builder;
     }
 }

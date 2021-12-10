@@ -1230,6 +1230,7 @@ public abstract class Engine implements Closeable {
      * The underlying store is marked corrupted iff failure is caused by index corruption
      */
     public void failEngine(String reason, @Nullable Exception failure) {
+        logger.info("ACT reason: {}, failure: {}", reason, failure.toString());
         if (failure != null) {
             maybeDie(reason, failure);
         }
@@ -1256,6 +1257,7 @@ public abstract class Engine implements Closeable {
                     // on the same node that we don't see the corrupted marker file when
                     // the shard is initializing
                     if (Lucene.isCorruptionException(failure)) {
+                        logger.info("yes corruption occured!!!!!!!!!!");
                         if (store.tryIncRef()) {
                             try {
                                 store.markStoreCorrupted(

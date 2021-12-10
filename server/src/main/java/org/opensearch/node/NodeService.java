@@ -32,7 +32,6 @@
 
 package org.opensearch.node;
 
-import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.Build;
 import org.opensearch.Version;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
@@ -43,6 +42,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.discovery.Discovery;
 import org.opensearch.http.HttpServerTransport;
 import org.opensearch.index.IndexingPressureService;

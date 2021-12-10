@@ -104,6 +104,7 @@ import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.AnalysisRegistry;
 import org.opensearch.index.cache.request.ShardRequestCache;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.engine.CommitStats;
 import org.opensearch.index.engine.EngineConfig;
 import org.opensearch.index.engine.EngineConfigFactory;
@@ -457,6 +458,9 @@ public class IndicesService extends AbstractLifecycleComponent
                     break;
                 case Flush:
                     commonStats.flush.add(oldShardsStats.flushStats);
+                    break;
+                case Corruption:
+                    commonStats.corruptionStats.add(oldShardsStats.corruptionStats);
                     break;
             }
         }
@@ -918,6 +922,7 @@ public class IndicesService extends AbstractLifecycleComponent
         final RefreshStats refreshStats = new RefreshStats();
         final FlushStats flushStats = new FlushStats();
         final RecoveryStats recoveryStats = new RecoveryStats();
+        final CorruptionStats corruptionStats = new CorruptionStats();
 
         @Override
         public synchronized void beforeIndexShardClosed(ShardId shardId, @Nullable IndexShard indexShard, Settings indexSettings) {
@@ -930,6 +935,7 @@ public class IndicesService extends AbstractLifecycleComponent
                 refreshStats.addTotals(indexShard.refreshStats());
                 flushStats.addTotals(indexShard.flushStats());
                 recoveryStats.addTotals(indexShard.recoveryStats());
+                corruptionStats.add(indexShard.corruptionStats());
             }
         }
     }

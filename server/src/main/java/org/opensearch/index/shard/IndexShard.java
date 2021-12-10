@@ -101,6 +101,7 @@ import org.opensearch.index.cache.IndexCache;
 import org.opensearch.index.cache.bitset.ShardBitsetFilterCache;
 import org.opensearch.index.cache.request.ShardRequestCache;
 import org.opensearch.index.codec.CodecService;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.engine.CommitStats;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.Engine.GetResult;
@@ -254,6 +255,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     private volatile RecoveryState recoveryState;
 
     private final RecoveryStats recoveryStats = new RecoveryStats();
+    private final CorruptionStats corruptionStats = new CorruptionStats();
     private final MeanMetric refreshMetric = new MeanMetric();
     private final MeanMetric externalRefreshMetric = new MeanMetric();
     private final MeanMetric flushMetric = new MeanMetric();
@@ -1488,6 +1490,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     public void failShard(String reason, @Nullable Exception e) {
         // fail the engine. This will cause this shard to also be removed from the node's index service.
+        logger.info("HELLOOOO",reason, e.getMessage(), e.toString(), "hello");
+        if ((e != null) && (Lucene.isCorruptionException(e))) {
+            corruptionStats.incCurrentCorruptions();
+        }
         getEngine().failEngine(reason, e);
     }
 
@@ -2026,6 +2032,13 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     public RecoveryStats recoveryStats() {
         return recoveryStats;
+    }
+
+    /**
+     * returns stat about current number of corruptions
+     */
+    public CorruptionStats corruptionStats() {
+        return corruptionStats;
     }
 
     /**
