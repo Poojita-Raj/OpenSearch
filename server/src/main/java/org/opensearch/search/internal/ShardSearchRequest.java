@@ -52,6 +52,7 @@ import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.Index;
+import org.opensearch.index.query.*;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.indices.AliasFilterParsingException;
 import org.opensearch.indices.InvalidAliasNameException;
