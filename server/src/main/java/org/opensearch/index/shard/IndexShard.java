@@ -172,6 +172,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1491,7 +1492,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void failShard(String reason, @Nullable Exception e) {
         // fail the engine. This will cause this shard to also be removed from the node's index service.
         logger.info("HELLOOOO",reason, e.getMessage(), e.toString(), "hello");
-        if ((e != null) && (Lucene.isCorruptionException(e))) {
+        if ((e != null) && ((Lucene.isCorruptionException(e) || (e instanceof NoSuchFileException)))) {
             corruptionStats.incCurrentCorruptions();
         }
         getEngine().failEngine(reason, e);
