@@ -36,30 +36,8 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexCommit;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.LiveIndexWriterConfig;
-import org.apache.lucene.index.MergePolicy;
-import org.apache.lucene.index.SegmentCommitInfo;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.ShuffleForcedMergePolicy;
-import org.apache.lucene.index.SoftDeletesRetentionMergePolicy;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.DocValuesFieldExistsQuery;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ReferenceManager;
-import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.Weight;
+import org.apache.lucene.index.*;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
@@ -87,14 +65,9 @@ import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.fieldvisitor.IdOnlyFieldVisitor;
-import org.opensearch.index.mapper.IdFieldMapper;
-import org.opensearch.index.mapper.MapperService;
-import org.opensearch.index.mapper.ParseContext;
-import org.opensearch.index.mapper.ParsedDocument;
-import org.opensearch.index.mapper.SeqNoFieldMapper;
-import org.opensearch.index.mapper.SourceFieldMapper;
-import org.opensearch.index.mapper.Uid;
+import org.opensearch.index.mapper.*;
 import org.opensearch.index.merge.MergeStats;
 import org.opensearch.index.merge.OnGoingMerge;
 import org.opensearch.index.seqno.LocalCheckpointTracker;
@@ -103,26 +76,15 @@ import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.index.shard.OpenSearchMergePolicy;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.index.store.Store;
-import org.opensearch.index.translog.Translog;
-import org.opensearch.index.translog.TranslogConfig;
-import org.opensearch.index.translog.TranslogCorruptedException;
-import org.opensearch.index.translog.DefaultTranslogDeletionPolicy;
-import org.opensearch.index.translog.TranslogDeletionPolicy;
-import org.opensearch.index.translog.TranslogStats;
+import org.opensearch.index.translog.*;
 import org.opensearch.search.suggest.completion.CompletionStats;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -553,7 +515,7 @@ public class InternalEngine extends Engine {
                 translog.currentFileGeneration()
             )
         );
-        flush(false, true);
+        flush(false, true, null);
         translog.trimUnreferencedReaders();
     }
 
@@ -1965,7 +1927,7 @@ public class InternalEngine extends Engine {
                 return SyncedFlushResult.COMMIT_MISMATCH;
             }
             logger.trace("starting sync commit [{}]", syncId);
-            commitIndexWriter(indexWriter, translog, syncId);
+            commitIndexWriter(indexWriter, translog, syncId, null);
             logger.debug("successfully sync committed. sync id [{}].", syncId);
             lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
             return SyncedFlushResult.SUCCESS;
@@ -1986,7 +1948,7 @@ public class InternalEngine extends Engine {
                 && indexWriter.hasUncommittedChanges()
                 && translog.estimateTotalOperationsFromMinSeq(localCheckpointOfLastCommit + 1) == 0) {
                 logger.trace("start renewing sync commit [{}]", syncId);
-                commitIndexWriter(indexWriter, translog, syncId);
+                commitIndexWriter(indexWriter, translog, syncId, null);
                 logger.debug("successfully sync committed. sync id [{}].", syncId);
                 lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
                 renewed = true;
@@ -2042,7 +2004,7 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException {
+    public CommitId flush(boolean force, boolean waitIfOngoing, CorruptionStats corruptionStats) throws EngineException {
         ensureOpen();
         if (force && waitIfOngoing == false) {
             assert false : "wait_if_ongoing must be true for a force flush: force=" + force + " wait_if_ongoing=" + waitIfOngoing;
@@ -2081,7 +2043,7 @@ public class InternalEngine extends Engine {
                     try {
                         translog.rollGeneration();
                         logger.trace("starting commit for flush; commitTranslog=true");
-                        commitIndexWriter(indexWriter, translog, null);
+                        commitIndexWriter(indexWriter, translog, null, corruptionStats);
                         logger.trace("finished commit for flush");
 
                         // a temporary debugging to investigate test failure - issue#32827. Remove when the issue is resolved
@@ -2290,7 +2252,7 @@ public class InternalEngine extends Engine {
                 }
                 if (flush) {
                     if (tryRenewSyncCommit() == false) {
-                        flush(false, true);
+                        flush(false, true, null);
                     }
                 }
                 if (upgrade) {
@@ -2330,7 +2292,7 @@ public class InternalEngine extends Engine {
         // the to a write lock when we fail the engine in this operation
         if (flushFirst) {
             logger.trace("start flush for snapshot");
-            flush(false, true);
+            flush(false, true, null);
             logger.trace("finish flush for snapshot");
         }
         final IndexCommit lastCommit = combinedDeletionPolicy.acquireIndexCommit(false);
@@ -2730,7 +2692,7 @@ public class InternalEngine extends Engine {
      * @param syncId   the sync flush ID ({@code null} if not committing a synced flush)
      * @throws IOException if an I/O exception occurs committing the specfied writer
      */
-    protected void commitIndexWriter(final IndexWriter writer, final Translog translog, @Nullable final String syncId) throws IOException {
+    protected void commitIndexWriter(final IndexWriter writer, final Translog translog, @Nullable final String syncId, @Nullable CorruptionStats corruptionStats) throws IOException {
         ensureCanFlush();
         try {
             final long localCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
@@ -2768,6 +2730,9 @@ public class InternalEngine extends Engine {
         } catch (final Exception ex) {
             try {
                 failEngine("lucene commit failed", ex);
+                if (ex instanceof NoSuchFileException) {
+                    corruptionStats.incCurrentCorruptions();
+                }
             } catch (final Exception inner) {
                 ex.addSuppressed(inner);
             }

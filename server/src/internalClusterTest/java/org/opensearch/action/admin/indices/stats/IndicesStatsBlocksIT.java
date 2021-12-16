@@ -135,7 +135,8 @@ public class IndicesStatsBlocksIT extends OpenSearchIntegTestCase {
             });
         } catch (Exception e) {
         }
-        IndicesStatsResponse indicesStatsResponse3 = client().admin().indices().prepareStats("ro").execute().actionGet()assertEquals(1, indicesStatsResponse3.getPrimaries().getCorruptionStats().currentCorruptions());
+        IndicesStatsResponse indicesStatsResponse3 = client().admin().indices().prepareStats("ro").execute().actionGet();
+        assertEquals(1, indicesStatsResponse3.getPrimaries().getCorruptionStats().currentCorruptions());
         // Request is not blocked
         for (String blockSetting : Arrays.asList(
             SETTING_BLOCKS_READ,

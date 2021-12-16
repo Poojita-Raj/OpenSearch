@@ -76,6 +76,7 @@ import org.opensearch.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.index.VersionType;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.mapper.Mapping;
 import org.opensearch.index.mapper.ParseContext.Document;
@@ -1141,7 +1142,7 @@ public abstract class Engine implements Closeable {
      *                      Otherwise this call will return without blocking.
      * @return the commit Id for the resulting commit
      */
-    public abstract CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException;
+    public abstract CommitId flush(boolean force, boolean waitIfOngoing, CorruptionStats corruptionStats) throws EngineException;
 
     /**
      * Flushes the state of the engine including the transaction log, clearing memory and persisting
@@ -1152,7 +1153,7 @@ public abstract class Engine implements Closeable {
      * @return the commit Id for the resulting commit
      */
     public final CommitId flush() throws EngineException {
-        return flush(false, false);
+        return flush(false, false, null);
     }
 
     /**

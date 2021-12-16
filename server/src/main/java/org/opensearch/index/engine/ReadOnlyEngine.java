@@ -45,6 +45,7 @@ import org.opensearch.common.lucene.Lucene;
 import org.opensearch.common.lucene.index.OpenSearchDirectoryReader;
 import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.core.internal.io.IOUtils;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.seqno.SeqNoStats;
 import org.opensearch.index.seqno.SequenceNumbers;
@@ -442,7 +443,7 @@ public class ReadOnlyEngine extends Engine {
     }
 
     @Override
-    public CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException {
+    public CommitId flush(boolean force, boolean waitIfOngoing, CorruptionStats corruptionStats) throws EngineException {
         return new CommitId(lastCommittedSegmentInfos.getId());
     }
 

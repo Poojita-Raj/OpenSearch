@@ -1343,7 +1343,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
          */
         verifyNotClosed();
         final long time = System.nanoTime();
-        final Engine.CommitId commitId = getEngine().flush(force, waitIfOngoing);
+        final Engine.CommitId commitId = getEngine().flush(force, waitIfOngoing, corruptionStats);
         flushMetric.inc(System.nanoTime() - time);
         return commitId;
     }
