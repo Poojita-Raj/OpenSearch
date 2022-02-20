@@ -238,6 +238,7 @@ public class IndicesService extends AbstractLifecycleComponent
     private final Map<Index, List<PendingDelete>> pendingDeletes = new HashMap<>();
     private final AtomicInteger numUncompletedDeletes = new AtomicInteger();
     private final OldShardsStats oldShardsStats = new OldShardsStats();
+    private final CorruptionStats indicesServiceCorruptionStats = new CorruptionStats();
     private final MapperRegistry mapperRegistry;
     private final NamedWriteableRegistry namedWriteableRegistry;
     private final IndexingMemoryController indexingMemoryController;
@@ -935,7 +936,7 @@ public class IndicesService extends AbstractLifecycleComponent
                 refreshStats.addTotals(indexShard.refreshStats());
                 flushStats.addTotals(indexShard.flushStats());
                 recoveryStats.addTotals(indexShard.recoveryStats());
-                corruptionStats.add(indexShard.corruptionStats());
+                corruptionStats.add(indexShard.corruptionStats(false));
             }
         }
     }

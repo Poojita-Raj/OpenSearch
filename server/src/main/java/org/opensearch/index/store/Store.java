@@ -1464,6 +1464,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
      * message. If a store contains a {@code corrupted_${uuid}} file {@link #isMarkedCorrupted()} will return <code>true</code>.
      */
     public void markStoreCorrupted(IOException exception) throws IOException {
+        logger.info("called\n");
         ensureOpen();
         if (!isMarkedCorrupted()) {
             final String corruptionMarkerName = CORRUPTED_MARKER_NAME_PREFIX + UUIDs.randomBase64UUID();

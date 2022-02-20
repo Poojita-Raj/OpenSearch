@@ -240,7 +240,7 @@ public class CommonStats implements Writeable, ToXContentFragment {
                         recoveryStats = indexShard.recoveryStats();
                         break;
                     case Corruption:
-                        corruptionStats = indexShard.corruptionStats();
+                        corruptionStats = null;
                         break;
                     default:
                         throw new IllegalStateException("Unknown Flag: " + flag);

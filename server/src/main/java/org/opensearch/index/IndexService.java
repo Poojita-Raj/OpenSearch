@@ -69,6 +69,7 @@ import org.opensearch.index.analysis.IndexAnalyzers;
 import org.opensearch.index.cache.IndexCache;
 import org.opensearch.index.cache.bitset.BitsetFilterCache;
 import org.opensearch.index.cache.query.QueryCache;
+import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.engine.EngineConfigFactory;
 import org.opensearch.index.engine.EngineFactory;
@@ -152,6 +153,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
     private volatile AsyncTranslogFSync fsyncTask;
     private volatile AsyncGlobalCheckpointTask globalCheckpointTask;
     private volatile AsyncRetentionLeaseSyncTask retentionLeaseSyncTask;
+    private final CorruptionStats totalIndexCorruption = new CorruptionStats();
 
     // don't convert to Setting<> and register... we only set this in tests and register via a plugin
     private final String INDEX_TRANSLOG_RETENTION_CHECK_INTERVAL_SETTING = "index.translog.retention.check_interval";
@@ -344,6 +346,8 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
     public Supplier<Sort> getIndexSortSupplier() {
         return indexSortSupplier;
     }
+
+    public CorruptionStats getTotalIndexCorruption() { return totalIndexCorruption; }
 
     public synchronized void close(final String reason, boolean delete) throws IOException {
         if (closed.compareAndSet(false, true)) {
@@ -564,6 +568,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
         try {
             try {
                 listener.beforeIndexShardClosed(sId, indexShard, indexSettings);
+                totalIndexCorruption.add(indexShard.corruptionStats(true));
             } finally {
                 // this logic is tricky, we want to close the engine so we rollback the changes done to it
                 // and close the shard so no operations are allowed to it

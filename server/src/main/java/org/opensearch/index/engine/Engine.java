@@ -34,15 +34,7 @@ package org.opensearch.index.engine;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexCommit;
-import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.SegmentCommitInfo;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.SegmentReader;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.QueryCache;
 import org.apache.lucene.search.QueryCachingPolicy;
@@ -96,16 +88,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.NoSuchFileException;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -142,6 +125,7 @@ public abstract class Engine implements Closeable {
     protected final ReleasableLock readLock = new ReleasableLock(rwl.readLock());
     protected final ReleasableLock writeLock = new ReleasableLock(rwl.writeLock());
     protected final SetOnce<Exception> failedEngine = new SetOnce<>();
+    protected CorruptionStats engineCorruptionStats = new CorruptionStats();
     /*
      * on {@code lastWriteNanos} we use System.nanoTime() to initialize this since:
      *  - we use the value for figuring out if the shard / engine is active so if we startup and no write has happened yet we still
@@ -183,6 +167,9 @@ public abstract class Engine implements Closeable {
     public MergeStats getMergeStats() {
         return new MergeStats();
     }
+
+    public CorruptionStats getEngineCorruptionStats() {
+        return engineCorruptionStats;}
 
     /** returns the history uuid for the engine */
     public abstract String getHistoryUUID();
@@ -1142,7 +1129,7 @@ public abstract class Engine implements Closeable {
      *                      Otherwise this call will return without blocking.
      * @return the commit Id for the resulting commit
      */
-    public abstract CommitId flush(boolean force, boolean waitIfOngoing, CorruptionStats corruptionStats) throws EngineException;
+    public abstract CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException;
 
     /**
      * Flushes the state of the engine including the transaction log, clearing memory and persisting
@@ -1153,7 +1140,7 @@ public abstract class Engine implements Closeable {
      * @return the commit Id for the resulting commit
      */
     public final CommitId flush() throws EngineException {
-        return flush(false, false, null);
+        return flush(false, false);
     }
 
     /**
@@ -1258,7 +1245,9 @@ public abstract class Engine implements Closeable {
                     // on the same node that we don't see the corrupted marker file when
                     // the shard is initializing
                     if (Lucene.isCorruptionException(failure)) {
-                        logger.info("yes corruption occured!!!!!!!!!!");
+                        logger.info("before inc corruption count\n");
+                        engineCorruptionStats.incCurrentCorruptions();
+                        logger.info("after inc corruption count\n");
                         if (store.tryIncRef()) {
                             try {
                                 store.markStoreCorrupted(

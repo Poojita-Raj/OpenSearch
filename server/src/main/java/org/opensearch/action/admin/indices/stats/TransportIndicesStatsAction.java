@@ -139,6 +139,7 @@ public class TransportIndicesStatsAction extends TransportBroadcastByNodeAction<
         }
 
         CommonStats commonStats = new CommonStats(indicesService.getIndicesQueryCache(), indexShard, request.flags());
+        //commonStats.corruptionStats.add(indexService.getTotalIndexCorruption());
         CommitStats commitStats;
         SeqNoStats seqNoStats;
         RetentionLeaseStats retentionLeaseStats;
@@ -152,6 +153,7 @@ public class TransportIndicesStatsAction extends TransportBroadcastByNodeAction<
             seqNoStats = null;
             retentionLeaseStats = null;
         }
+        commonStats.corruptionStats = indexService.getTotalIndexCorruption();
         return new ShardStats(indexShard.routingEntry(), indexShard.shardPath(), commonStats, commitStats, seqNoStats, retentionLeaseStats);
     }
 }

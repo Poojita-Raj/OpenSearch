@@ -39,24 +39,21 @@ import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
-
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.opensearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
 import org.opensearch.action.admin.indices.shards.IndicesShardStoresResponse;
+import org.opensearch.index.corruption.CorruptionStats;
+import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.Requests;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.health.ClusterHealthStatus;
 import org.opensearch.cluster.metadata.IndexMetadata;
-import org.opensearch.cluster.routing.GroupShardsIterator;
-import org.opensearch.cluster.routing.IndexShardRoutingTable;
-import org.opensearch.cluster.routing.ShardIterator;
-import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.cluster.routing.ShardRoutingState;
+import org.opensearch.cluster.routing.*;
 import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.opensearch.cluster.routing.allocation.decider.ThrottlingAllocationDecider;
 import org.opensearch.common.Nullable;
@@ -82,9 +79,9 @@ import org.opensearch.monitor.fs.FsInfo;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.snapshots.SnapshotState;
 import org.opensearch.test.CorruptionUtils;
-import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.InternalSettingsPlugin;
 import org.opensearch.test.MockIndexEventListener;
+import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.test.store.MockFSIndexStore;
 import org.opensearch.test.transport.MockTransportService;
 import org.opensearch.transport.TransportService;
@@ -96,32 +93,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.hamcrest.Matchers.*;
 import static org.opensearch.action.admin.cluster.node.stats.NodesStatsRequest.Metric.FS;
 import static org.opensearch.common.util.CollectionUtils.iterableAsArrayList;
-import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
-import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAllSuccessful;
-import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertHitCount;
-
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.opensearch.test.hamcrest.OpenSearchAssertions.*;
 
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.TEST)
 public class CorruptedFileIT extends OpenSearchIntegTestCase {
@@ -188,6 +170,11 @@ public class CorruptedFileIT extends OpenSearchIntegTestCase {
         SearchResponse countResponse = client().prepareSearch().setSize(0).get();
         assertHitCount(countResponse, numDocs);
 
+        IndicesStatsResponse indicesStatsResponse = client().admin().indices().prepareStats("test").execute().actionGet();
+        CorruptionStats corrStats = indicesStatsResponse.getPrimaries().getCorruptionStats();
+        if (corrStats != null) {
+            assertEquals(0, corrStats.currentCorruptions());
+        }
         final int numShards = numShards("test");
         ShardRouting corruptedShardRouting = corruptRandomPrimaryFile();
         logger.info("--> {} corrupted", corruptedShardRouting);
@@ -220,7 +207,9 @@ public class CorruptedFileIT extends OpenSearchIntegTestCase {
             SearchResponse response = client().prepareSearch().setSize(numDocs).get();
             assertHitCount(response, numDocs);
         }
-
+        logger.info("hi\n");
+        IndicesStatsResponse indicesStatsResponse2 = client().admin().indices().prepareStats("test").execute().actionGet();
+        assertEquals(1, indicesStatsResponse2.getPrimaries().getCorruptionStats().currentCorruptions());
         /*
          * now hook into the IndicesService and register a close listener to
          * run the checkindex. if the corruption is still there we will catch it.

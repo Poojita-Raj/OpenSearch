@@ -65,7 +65,6 @@ import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
-import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.fieldvisitor.IdOnlyFieldVisitor;
 import org.opensearch.index.mapper.*;
 import org.opensearch.index.merge.MergeStats;
@@ -82,7 +81,6 @@ import org.opensearch.threadpool.ThreadPool;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -515,7 +513,7 @@ public class InternalEngine extends Engine {
                 translog.currentFileGeneration()
             )
         );
-        flush(false, true, null);
+        flush(false, true);
         translog.trimUnreferencedReaders();
     }
 
@@ -1927,7 +1925,7 @@ public class InternalEngine extends Engine {
                 return SyncedFlushResult.COMMIT_MISMATCH;
             }
             logger.trace("starting sync commit [{}]", syncId);
-            commitIndexWriter(indexWriter, translog, syncId, null);
+            commitIndexWriter(indexWriter, translog, syncId);
             logger.debug("successfully sync committed. sync id [{}].", syncId);
             lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
             return SyncedFlushResult.SUCCESS;
@@ -1948,7 +1946,7 @@ public class InternalEngine extends Engine {
                 && indexWriter.hasUncommittedChanges()
                 && translog.estimateTotalOperationsFromMinSeq(localCheckpointOfLastCommit + 1) == 0) {
                 logger.trace("start renewing sync commit [{}]", syncId);
-                commitIndexWriter(indexWriter, translog, syncId, null);
+                commitIndexWriter(indexWriter, translog, syncId);
                 logger.debug("successfully sync committed. sync id [{}].", syncId);
                 lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
                 renewed = true;
@@ -2004,7 +2002,7 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public CommitId flush(boolean force, boolean waitIfOngoing, CorruptionStats corruptionStats) throws EngineException {
+    public CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException {
         ensureOpen();
         if (force && waitIfOngoing == false) {
             assert false : "wait_if_ongoing must be true for a force flush: force=" + force + " wait_if_ongoing=" + waitIfOngoing;
@@ -2043,7 +2041,7 @@ public class InternalEngine extends Engine {
                     try {
                         translog.rollGeneration();
                         logger.trace("starting commit for flush; commitTranslog=true");
-                        commitIndexWriter(indexWriter, translog, null, corruptionStats);
+                        commitIndexWriter(indexWriter, translog, null);
                         logger.trace("finished commit for flush");
 
                         // a temporary debugging to investigate test failure - issue#32827. Remove when the issue is resolved
@@ -2252,7 +2250,7 @@ public class InternalEngine extends Engine {
                 }
                 if (flush) {
                     if (tryRenewSyncCommit() == false) {
-                        flush(false, true, null);
+                        flush(false, true);
                     }
                 }
                 if (upgrade) {
@@ -2292,7 +2290,7 @@ public class InternalEngine extends Engine {
         // the to a write lock when we fail the engine in this operation
         if (flushFirst) {
             logger.trace("start flush for snapshot");
-            flush(false, true, null);
+            flush(false, true);
             logger.trace("finish flush for snapshot");
         }
         final IndexCommit lastCommit = combinedDeletionPolicy.acquireIndexCommit(false);
@@ -2692,7 +2690,7 @@ public class InternalEngine extends Engine {
      * @param syncId   the sync flush ID ({@code null} if not committing a synced flush)
      * @throws IOException if an I/O exception occurs committing the specfied writer
      */
-    protected void commitIndexWriter(final IndexWriter writer, final Translog translog, @Nullable final String syncId, @Nullable CorruptionStats corruptionStats) throws IOException {
+    protected void commitIndexWriter(final IndexWriter writer, final Translog translog, @Nullable final String syncId) throws IOException {
         ensureCanFlush();
         try {
             final long localCheckpoint = localCheckpointTracker.getProcessedCheckpoint();
@@ -2730,9 +2728,6 @@ public class InternalEngine extends Engine {
         } catch (final Exception ex) {
             try {
                 failEngine("lucene commit failed", ex);
-                if (ex instanceof NoSuchFileException) {
-                    corruptionStats.incCurrentCorruptions();
-                }
             } catch (final Exception inner) {
                 ex.addSuppressed(inner);
             }

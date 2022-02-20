@@ -35,25 +35,15 @@ package org.opensearch.index.shard;
 import com.carrotsearch.hppc.ObjectLongMap;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.apache.lucene.index.CheckIndex;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.FilterDirectoryReader;
-import org.apache.lucene.index.IndexCommit;
-import org.apache.lucene.index.LeafReader;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.QueryCachingPolicy;
-import org.apache.lucene.search.ReferenceManager;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.UsageTrackingQueryCachingPolicy;
+import org.apache.lucene.index.*;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.SetOnce;
 import org.apache.lucene.util.ThreadInterruptedException;
 import org.opensearch.Assertions;
+import org.opensearch.ExceptionsHelper;
 import org.opensearch.LegacyESVersion;
 import org.opensearch.OpenSearchException;
-import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRunnable;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
@@ -67,11 +57,7 @@ import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.RecoverySource;
 import org.opensearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.opensearch.cluster.routing.ShardRouting;
-import org.opensearch.common.Booleans;
-import org.opensearch.common.CheckedConsumer;
-import org.opensearch.common.CheckedFunction;
-import org.opensearch.common.CheckedRunnable;
-import org.opensearch.common.Nullable;
+import org.opensearch.common.*;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.lease.Releasable;
@@ -91,56 +77,27 @@ import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.gateway.WriteStateException;
-import org.opensearch.index.Index;
-import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexNotFoundException;
-import org.opensearch.index.IndexService;
-import org.opensearch.index.IndexSettings;
-import org.opensearch.index.VersionType;
+import org.opensearch.index.*;
 import org.opensearch.index.cache.IndexCache;
 import org.opensearch.index.cache.bitset.ShardBitsetFilterCache;
 import org.opensearch.index.cache.request.ShardRequestCache;
 import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.corruption.CorruptionStats;
-import org.opensearch.index.engine.CommitStats;
-import org.opensearch.index.engine.Engine;
+import org.opensearch.index.engine.*;
 import org.opensearch.index.engine.Engine.GetResult;
-import org.opensearch.index.engine.EngineConfig;
-import org.opensearch.index.engine.EngineConfigFactory;
-import org.opensearch.index.engine.EngineException;
-import org.opensearch.index.engine.EngineFactory;
-import org.opensearch.index.engine.ReadOnlyEngine;
-import org.opensearch.index.engine.RefreshFailedEngineException;
-import org.opensearch.index.engine.SafeCommitInfo;
-import org.opensearch.index.engine.Segment;
-import org.opensearch.index.engine.SegmentsStats;
 import org.opensearch.index.fielddata.FieldDataStats;
 import org.opensearch.index.fielddata.ShardFieldData;
 import org.opensearch.index.flush.FlushStats;
 import org.opensearch.index.get.GetStats;
 import org.opensearch.index.get.ShardGetService;
-import org.opensearch.index.mapper.DocumentMapper;
-import org.opensearch.index.mapper.DocumentMapperForType;
-import org.opensearch.index.mapper.IdFieldMapper;
-import org.opensearch.index.mapper.MapperParsingException;
-import org.opensearch.index.mapper.MapperService;
-import org.opensearch.index.mapper.Mapping;
-import org.opensearch.index.mapper.ParsedDocument;
-import org.opensearch.index.mapper.RootObjectMapper;
-import org.opensearch.index.mapper.SourceToParse;
-import org.opensearch.index.mapper.Uid;
+import org.opensearch.index.mapper.*;
 import org.opensearch.index.merge.MergeStats;
 import org.opensearch.index.recovery.RecoveryStats;
 import org.opensearch.index.refresh.RefreshStats;
 import org.opensearch.index.search.stats.SearchStats;
 import org.opensearch.index.search.stats.ShardSearchStats;
-import org.opensearch.index.seqno.ReplicationTracker;
-import org.opensearch.index.seqno.RetentionLease;
-import org.opensearch.index.seqno.RetentionLeaseStats;
-import org.opensearch.index.seqno.RetentionLeaseSyncer;
-import org.opensearch.index.seqno.RetentionLeases;
-import org.opensearch.index.seqno.SeqNoStats;
-import org.opensearch.index.seqno.SequenceNumbers;
+import org.opensearch.index.seqno.*;
 import org.opensearch.index.shard.PrimaryReplicaSyncer.ResyncTask;
 import org.opensearch.index.similarity.SimilarityService;
 import org.opensearch.index.store.Store;
@@ -172,18 +129,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.NoSuchFileException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -191,11 +137,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.LongSupplier;
-import java.util.function.Supplier;
+import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -256,7 +198,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     private volatile RecoveryState recoveryState;
 
     private final RecoveryStats recoveryStats = new RecoveryStats();
-    private final CorruptionStats corruptionStats = new CorruptionStats();
+    private CorruptionStats indexShardCorruptionStats = new CorruptionStats();
     private final MeanMetric refreshMetric = new MeanMetric();
     private final MeanMetric externalRefreshMetric = new MeanMetric();
     private final MeanMetric flushMetric = new MeanMetric();
@@ -805,6 +747,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         return previousState;
     }
 
+    //public void incrementCorruption() {
+    //    corruptionStats.incCurrentCorruptions();
+    //}
+
     public Engine.IndexResult applyIndexOperationOnPrimary(
         long version,
         VersionType versionType,
@@ -1297,6 +1243,16 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         return engine.getMergeStats();
     }
 
+    public CorruptionStats corruptionStats(boolean closing) {
+        final Engine engine = getEngineOrNull();
+        if (engine == null || closing == true) {
+            return indexShardCorruptionStats;
+        }
+        CorruptionStats newCorruptionStats = engine.getEngineCorruptionStats();
+        indexShardCorruptionStats.add(newCorruptionStats);
+        return indexShardCorruptionStats;
+    }
+
     public SegmentsStats segmentStats(boolean includeSegmentFileSizes, boolean includeUnloadedSegments) {
         SegmentsStats segmentsStats = getEngine().segmentsStats(includeSegmentFileSizes, includeUnloadedSegments);
         segmentsStats.addBitsetMemoryInBytes(shardBitsetFilterCache.getMemorySizeInBytes());
@@ -1343,7 +1299,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
          */
         verifyNotClosed();
         final long time = System.nanoTime();
-        final Engine.CommitId commitId = getEngine().flush(force, waitIfOngoing, corruptionStats);
+        final Engine.CommitId commitId = getEngine().flush(force, waitIfOngoing);
         flushMetric.inc(System.nanoTime() - time);
         return commitId;
     }
@@ -1492,9 +1448,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void failShard(String reason, @Nullable Exception e) {
         // fail the engine. This will cause this shard to also be removed from the node's index service.
         logger.info("HELLOOOO",reason, e.getMessage(), e.toString(), "hello");
-        if ((e != null) && ((Lucene.isCorruptionException(e) || (e instanceof NoSuchFileException)))) {
-            corruptionStats.incCurrentCorruptions();
-        }
+        //if ((e != null) && (Lucene.isCorruptionException(e))) {
+        //    corruptionStats.incCurrentCorruptions();
+        //}
         getEngine().failEngine(reason, e);
     }
 
@@ -2038,9 +1994,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     /**
      * returns stat about current number of corruptions
      */
-    public CorruptionStats corruptionStats() {
-        return corruptionStats;
-    }
+    //public CorruptionStats corruptionStats() {
+    //    return corruptionStats;
+    //}
 
     /**
      * Returns the current {@link RecoveryState} if this shard is recovering or has been recovering.

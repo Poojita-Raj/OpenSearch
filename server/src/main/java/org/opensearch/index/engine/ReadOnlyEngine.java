@@ -31,11 +31,7 @@
 
 package org.opensearch.index.engine;
 
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexCommit;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.SoftDeletesDirectoryReaderWrapper;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.Lock;
@@ -45,16 +41,11 @@ import org.opensearch.common.lucene.Lucene;
 import org.opensearch.common.lucene.index.OpenSearchDirectoryReader;
 import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.core.internal.io.IOUtils;
-import org.opensearch.index.corruption.CorruptionStats;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.seqno.SeqNoStats;
 import org.opensearch.index.seqno.SequenceNumbers;
 import org.opensearch.index.store.Store;
-import org.opensearch.index.translog.Translog;
-import org.opensearch.index.translog.TranslogConfig;
-import org.opensearch.index.translog.DefaultTranslogDeletionPolicy;
-import org.opensearch.index.translog.TranslogDeletionPolicy;
-import org.opensearch.index.translog.TranslogStats;
+import org.opensearch.index.translog.*;
 import org.opensearch.search.suggest.completion.CompletionStats;
 import org.opensearch.transport.Transports;
 
@@ -443,7 +434,7 @@ public class ReadOnlyEngine extends Engine {
     }
 
     @Override
-    public CommitId flush(boolean force, boolean waitIfOngoing, CorruptionStats corruptionStats) throws EngineException {
+    public CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException {
         return new CommitId(lastCommittedSegmentInfos.getId());
     }
 
