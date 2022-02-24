@@ -199,6 +199,56 @@ public final class EngineConfig {
         );
     }
 
+    public EngineConfig(
+        ShardId shardId,
+        ThreadPool threadPool,
+        IndexSettings indexSettings,
+        Engine.Warmer warmer,
+        Store store,
+        MergePolicy mergePolicy,
+        Analyzer analyzer,
+        Similarity similarity,
+        CodecService codecService,
+        Engine.EventListener eventListener,
+        QueryCache queryCache,
+        QueryCachingPolicy queryCachingPolicy,
+        TranslogConfig translogConfig,
+        TimeValue flushMergesAfter,
+        List<ReferenceManager.RefreshListener> externalRefreshListener,
+        List<ReferenceManager.RefreshListener> internalRefreshListener,
+        Sort indexSort,
+        CircuitBreakerService circuitBreakerService,
+        LongSupplier globalCheckpointSupplier,
+        Supplier<RetentionLeases> retentionLeasesSupplier,
+        LongSupplier primaryTermSupplier,
+        TombstoneDocSupplier tombstoneDocSupplier) {
+        this(
+            shardId,
+            threadPool,
+            indexSettings,
+            warmer,
+            store,
+            mergePolicy,
+            analyzer,
+            similarity,
+            codecService,
+            eventListener,
+            queryCache,
+            queryCachingPolicy,
+            translogConfig,
+            null,
+            flushMergesAfter,
+            externalRefreshListener,
+            internalRefreshListener,
+            indexSort,
+            circuitBreakerService,
+            globalCheckpointSupplier,
+            retentionLeasesSupplier,
+            primaryTermSupplier,
+            tombstoneDocSupplier
+        );
+    }
+
     /**
      * Creates a new {@link org.opensearch.index.engine.EngineConfig}
      */
@@ -239,6 +289,71 @@ public final class EngineConfig {
         this.eventListener = eventListener;
         codecName = indexSettings.getValue(INDEX_CODEC_SETTING);
         this.isPrimary = isPrimary;
+        // We need to make the indexing buffer for this shard at least as large
+        // as the amount of memory that is available for all engines on the
+        // local node so that decisions to flush segments to disk are made by
+        // IndexingMemoryController rather than Lucene.
+        // Add an escape hatch in case this change proves problematic - it used
+        // to be a fixed amound of RAM: 256 MB.
+        // TODO: Remove this escape hatch in 8.x
+        final String escapeHatchProperty = "opensearch.index.memory.max_index_buffer_size";
+        String maxBufferSize = System.getProperty(escapeHatchProperty);
+        if (maxBufferSize != null) {
+            indexingBufferSize = MemorySizeValue.parseBytesSizeValueOrHeapRatio(maxBufferSize, escapeHatchProperty);
+        } else {
+            indexingBufferSize = IndexingMemoryController.INDEX_BUFFER_SIZE_SETTING.get(indexSettings.getNodeSettings());
+        }
+        this.queryCache = queryCache;
+        this.queryCachingPolicy = queryCachingPolicy;
+        this.translogConfig = translogConfig;
+        this.translogDeletionPolicyFactory = translogDeletionPolicyFactory;
+        this.flushMergesAfter = flushMergesAfter;
+        this.externalRefreshListener = externalRefreshListener;
+        this.internalRefreshListener = internalRefreshListener;
+        this.indexSort = indexSort;
+        this.circuitBreakerService = circuitBreakerService;
+        this.globalCheckpointSupplier = globalCheckpointSupplier;
+        this.retentionLeasesSupplier = Objects.requireNonNull(retentionLeasesSupplier);
+        this.primaryTermSupplier = primaryTermSupplier;
+        this.tombstoneDocSupplier = tombstoneDocSupplier;
+    }
+
+    EngineConfig(
+        ShardId shardId,
+        ThreadPool threadPool,
+        IndexSettings indexSettings,
+        Engine.Warmer warmer,
+        Store store,
+        MergePolicy mergePolicy,
+        Analyzer analyzer,
+        Similarity similarity,
+        CodecService codecService,
+        Engine.EventListener eventListener,
+        QueryCache queryCache,
+        QueryCachingPolicy queryCachingPolicy,
+        TranslogConfig translogConfig,
+        TranslogDeletionPolicyFactory translogDeletionPolicyFactory,
+        TimeValue flushMergesAfter,
+        List<ReferenceManager.RefreshListener> externalRefreshListener,
+        List<ReferenceManager.RefreshListener> internalRefreshListener,
+        Sort indexSort,
+        CircuitBreakerService circuitBreakerService,
+        LongSupplier globalCheckpointSupplier,
+        Supplier<RetentionLeases> retentionLeasesSupplier,
+        LongSupplier primaryTermSupplier,
+        TombstoneDocSupplier tombstoneDocSupplier
+    ) {
+        this.shardId = shardId;
+        this.indexSettings = indexSettings;
+        this.threadPool = threadPool;
+        this.warmer = warmer == null ? (a) -> {} : warmer;
+        this.store = store;
+        this.mergePolicy = mergePolicy;
+        this.analyzer = analyzer;
+        this.similarity = similarity;
+        this.codecService = codecService;
+        this.eventListener = eventListener;
+        codecName = indexSettings.getValue(INDEX_CODEC_SETTING);
         // We need to make the indexing buffer for this shard at least as large
         // as the amount of memory that is available for all engines on the
         // local node so that decisions to flush segments to disk are made by

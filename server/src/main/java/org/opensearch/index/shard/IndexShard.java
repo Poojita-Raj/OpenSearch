@@ -414,6 +414,112 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         this.replicationState = new ReplicationState();
     }
 
+    public IndexShard(
+        final ShardRouting shardRouting,
+        final IndexSettings indexSettings,
+        final ShardPath path,
+        final Store store,
+        final Supplier<Sort> indexSortSupplier,
+        final IndexCache indexCache,
+        final MapperService mapperService,
+        final SimilarityService similarityService,
+        final EngineFactory engineFactory,
+        final EngineConfigFactory engineConfigFactory,
+        final IndexEventListener indexEventListener,
+        final CheckedFunction<DirectoryReader, DirectoryReader, IOException> indexReaderWrapper,
+        final ThreadPool threadPool,
+        final BigArrays bigArrays,
+        final Engine.Warmer warmer,
+        final List<SearchOperationListener> searchOperationListener,
+        final List<IndexingOperationListener> listeners,
+        final Runnable globalCheckpointSyncer,
+        final RetentionLeaseSyncer retentionLeaseSyncer,
+        final CircuitBreakerService circuitBreakerService) throws IOException {
+        super(shardRouting.shardId(), indexSettings);
+        assert shardRouting.initializing();
+        this.shardRouting = shardRouting;
+        final Settings settings = indexSettings.getSettings();
+        this.codecService = new CodecService(mapperService, logger);
+        this.warmer = warmer;
+        this.similarityService = similarityService;
+        Objects.requireNonNull(store, "Store must be provided to the index shard");
+        this.engineFactory = Objects.requireNonNull(engineFactory);
+        this.engineConfigFactory = Objects.requireNonNull(engineConfigFactory);
+        this.store = store;
+        this.indexSortSupplier = indexSortSupplier;
+        this.indexEventListener = indexEventListener;
+        this.threadPool = threadPool;
+        this.translogSyncProcessor = createTranslogSyncProcessor(logger, threadPool.getThreadContext(), this::getEngine);
+        this.mapperService = mapperService;
+        this.indexCache = indexCache;
+        this.internalIndexingStats = new InternalIndexingStats();
+        final List<IndexingOperationListener> listenersList = new ArrayList<>(listeners);
+        listenersList.add(internalIndexingStats);
+        this.indexingOperationListeners = new IndexingOperationListener.CompositeListener(listenersList, logger);
+        this.globalCheckpointSyncer = globalCheckpointSyncer;
+        this.retentionLeaseSyncer = Objects.requireNonNull(retentionLeaseSyncer);
+        final List<SearchOperationListener> searchListenersList = new ArrayList<>(searchOperationListener);
+        searchListenersList.add(searchStats);
+        this.searchOperationListener = new SearchOperationListener.CompositeListener(searchListenersList, logger);
+        this.getService = new ShardGetService(indexSettings, this, mapperService);
+        this.shardWarmerService = new ShardIndexWarmerService(shardId, indexSettings);
+        this.requestCacheStats = new ShardRequestCache();
+        this.shardFieldData = new ShardFieldData();
+        this.shardBitsetFilterCache = new ShardBitsetFilterCache(shardId, indexSettings);
+        state = IndexShardState.CREATED;
+        this.path = path;
+        this.circuitBreakerService = circuitBreakerService;
+        /* create engine config */
+        logger.debug("state: [CREATED]");
+
+        this.checkIndexOnStartup = indexSettings.getValue(IndexSettings.INDEX_CHECK_ON_STARTUP);
+        this.translogConfig = new TranslogConfig(shardId, shardPath().resolveTranslog(), indexSettings, bigArrays);
+        final String aId = shardRouting.allocationId().getId();
+        final long primaryTerm = indexSettings.getIndexMetadata().primaryTerm(shardId.id());
+        this.pendingPrimaryTerm = primaryTerm;
+        this.globalCheckpointListeners = new GlobalCheckpointListeners(shardId, threadPool.scheduler(), logger);
+        this.pendingReplicationActions = new PendingReplicationActions(shardId, threadPool);
+        this.replicationTracker = new ReplicationTracker(
+            shardId,
+            aId,
+            indexSettings,
+            primaryTerm,
+            UNASSIGNED_SEQ_NO,
+            globalCheckpointListeners::globalCheckpointUpdated,
+            threadPool::absoluteTimeInMillis,
+            (retentionLeases, listener) -> retentionLeaseSyncer.sync(shardId, aId, getPendingPrimaryTerm(), retentionLeases, listener),
+            this::getSafeCommitInfo,
+            pendingReplicationActions
+        );
+
+        // the query cache is a node-level thing, however we want the most popular filters
+        // to be computed on a per-shard basis
+        if (IndexModule.INDEX_QUERY_CACHE_EVERYTHING_SETTING.get(settings)) {
+            cachingPolicy = new QueryCachingPolicy() {
+                @Override
+                public void onUse(Query query) {
+
+                }
+
+                @Override
+                public boolean shouldCache(Query query) {
+                    return true;
+                }
+            };
+        } else {
+            cachingPolicy = new UsageTrackingQueryCachingPolicy();
+        }
+        indexShardOperationPermits = new IndexShardOperationPermits(shardId, threadPool);
+        readerWrapper = indexReaderWrapper;
+        refreshListeners = buildRefreshListeners();
+        lastSearcherAccess.set(threadPool.relativeTimeInMillis());
+        persistMetadata(path, indexSettings, shardRouting, null, logger);
+        this.useRetentionLeasesInPeerRecovery = replicationTracker.hasAllPeerRecoveryRetentionLeases();
+        this.refreshPendingLocationListener = new RefreshPendingLocationListener();
+        this.checkpointRefreshListener = null;
+        this.replicationState = new ReplicationState();
+    }
+
     public ThreadPool getThreadPool() {
         return this.threadPool;
     }
@@ -459,6 +565,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     public boolean isSystem() {
         return indexSettings.getIndexMetadata().isSystem();
+    }
+
+    public Boolean isSegmentReplicationEnabled() {
+        return indexSettings.getValue(IndexSettings.INDEX_SEGMENT_REPLICATION_SETTING);
     }
 
     /**
@@ -849,8 +959,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         boolean isRetry,
         SourceToParse sourceToParse
     ) throws IOException {
-        Boolean isSegRepEnabled = indexSettings.getValue(IndexSettings.INDEX_SEGMENT_REPLICATION_SETTING);
-        if (isSegRepEnabled != null && isSegRepEnabled) {
+        if (isSegmentReplicationEnabled() != null && isSegmentReplicationEnabled()) {
             Engine.Index index;
             try {
                 index = parseSourceAndPrepareIndex(
@@ -3092,22 +3201,26 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             case PEER:
                 try {
                     markAsRecovering("from " + recoveryState.getSourceNode(), recoveryState);
-                    IndexShard indexShard = this;
-                    segmentReplicationReplicaService.prepareForReplication(this, recoveryState.getTargetNode(), recoveryState.getSourceNode(), new ActionListener<TrackShardResponse>() {
-                        @Override
-                        public void onResponse(TrackShardResponse unused) {
-                            replicationListener.onReplicationDone(replicationState);
-                            recoveryState.getIndex().setFileDetailsComplete();
-                            finalizeRecovery();
-                            postRecovery("Shard setup complete.");
-                        }
-                        @Override
-                        public void onFailure(Exception e) {
-                            replicationListener.onReplicationFailure(replicationState, new ReplicationFailedException(indexShard, e), true);
-                        }
-                    });
+                    if (isSegmentReplicationEnabled()) {
+                        IndexShard indexShard = this;
+                        segmentReplicationReplicaService.prepareForReplication(this, recoveryState.getTargetNode(), recoveryState.getSourceNode(), new ActionListener<TrackShardResponse>() {
+                            @Override
+                            public void onResponse(TrackShardResponse unused) {
+                                replicationListener.onReplicationDone(replicationState);
+                                recoveryState.getIndex().setFileDetailsComplete();
+                                finalizeRecovery();
+                                postRecovery("Shard setup complete.");
+                            }
+
+                            @Override
+                            public void onFailure(Exception e) {
+                                replicationListener.onReplicationFailure(replicationState, new ReplicationFailedException(indexShard, e), true);
+                            }
+                        });
+                    } else {
+                        peerRecoveryTargetService.startRecovery(this, recoveryState.getSourceNode(), recoveryListener);
+                    }
                 } catch (Exception e) {
-                    logger.error("Error preparing the shard for Segment replication", e);
                     failShard("corrupted preexisting index", e);
                     recoveryListener.onRecoveryFailure(recoveryState, new RecoveryFailedException(recoveryState, null, e), true);
                 }
@@ -3912,8 +4025,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public boolean scheduledRefresh() {
         // skip if not primary shard.
         // TODO: Segrep - should split into primary/replica classes.
-        if (shardRouting.primary() == false) {
-            return false;
+        if (isSegmentReplicationEnabled()) {
+            if (shardRouting.primary() == false) {
+                return false;
+            }
         }
         verifyNotClosed();
         boolean listenerNeedsRefresh = refreshListeners.refreshNeeded();
