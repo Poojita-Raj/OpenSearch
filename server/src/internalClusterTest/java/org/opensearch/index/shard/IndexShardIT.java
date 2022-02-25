@@ -83,6 +83,7 @@ import org.opensearch.index.translog.TranslogStats;
 import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.breaker.CircuitBreakerService;
 import org.opensearch.indices.recovery.RecoveryState;
+import org.opensearch.indices.replication.checkpoint.TransportCheckpointPublisher;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.test.DummyShardLock;
@@ -644,7 +645,7 @@ public class IndexShardIT extends OpenSearchSingleNodeTestCase {
         return newShard;
     }
 
-    public static final IndexShard newIndexShard(
+    public final IndexShard newIndexShard(
         final IndexService indexService,
         final IndexShard shard,
         CheckedFunction<DirectoryReader, DirectoryReader, IOException> wrapper,
@@ -672,7 +673,8 @@ public class IndexShardIT extends OpenSearchSingleNodeTestCase {
             Arrays.asList(listeners),
             () -> {},
             RetentionLeaseSyncer.EMPTY,
-            cbs
+            cbs,
+            new TransportCheckpointPublisher(client())
         );
     }
 

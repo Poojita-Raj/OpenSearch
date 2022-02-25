@@ -3439,7 +3439,8 @@ public class InternalEngineTests extends EngineTestCase {
             () -> UNASSIGNED_SEQ_NO,
             () -> RetentionLeases.EMPTY,
             primaryTerm::get,
-            tombstoneDocSupplier()
+            tombstoneDocSupplier(),
+            config.isPrimary()
         );
         expectThrows(EngineCreationFailureException.class, () -> new InternalEngine(brokenConfig));
 
@@ -3482,6 +3483,7 @@ public class InternalEngineTests extends EngineTestCase {
             config.getCircuitBreakerService(),
             config.getGlobalCheckpointSupplier(),
             config.retentionLeasesSupplier(),
+            config.isPrimary(),
             config.getPrimaryTermSupplier(),
             config.getTombstoneDocSupplier()
         );
@@ -7102,7 +7104,8 @@ public class InternalEngineTests extends EngineTestCase {
                 config.getGlobalCheckpointSupplier(),
                 config.retentionLeasesSupplier(),
                 config.getPrimaryTermSupplier(),
-                config.getTombstoneDocSupplier()
+                config.getTombstoneDocSupplier(),
+                config.isPrimary()
             );
             try (InternalEngine engine = createEngine(configWithWarmer)) {
                 assertThat(warmedUpReaders, empty());
