@@ -32,23 +32,17 @@
 
 package org.opensearch.index.engine;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiConsumer;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.LeafReader;
-import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.StandardDirectoryReader;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.ReferenceManager;
-
 import org.apache.lucene.search.SearcherManager;
 import org.opensearch.common.SuppressForbidden;
 import org.opensearch.common.lucene.index.OpenSearchDirectoryReader;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Utility class to safely share {@link OpenSearchDirectoryReader} instances across
@@ -61,8 +55,6 @@ import org.opensearch.common.lucene.index.OpenSearchDirectoryReader;
 @SuppressForbidden(reason = "reference counting is required here")
 class OpenSearchReaderManager extends ReferenceManager<OpenSearchDirectoryReader> {
     protected static Logger logger = LogManager.getLogger(OpenSearchReaderManager.class);
-
-    private final BiConsumer<OpenSearchDirectoryReader, OpenSearchDirectoryReader> refreshListener;
 
     private volatile SegmentInfos currentInfos;
 
@@ -104,9 +96,6 @@ class OpenSearchReaderManager extends ReferenceManager<OpenSearchDirectoryReader
             DirectoryReader innerReader = StandardDirectoryReader.open(referenceToRefresh.directory(), currentInfos, subs, null);
             reader = OpenSearchDirectoryReader.wrap(innerReader, referenceToRefresh.shardId());
             logger.trace("updated to SegmentInfosVersion=" + currentInfos.getVersion() + " reader=" + innerReader);
-        }
-        if (reader != null) {
-            refreshListener.accept(reader, referenceToRefresh);
         }
         return reader;
     }

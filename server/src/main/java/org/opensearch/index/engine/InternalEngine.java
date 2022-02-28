@@ -693,10 +693,7 @@ public class InternalEngine extends Engine {
         try {
             try {
                 final OpenSearchDirectoryReader directoryReader = OpenSearchDirectoryReader.wrap(getDirectoryReader(), shardId);
-                internalReaderManager = new OpenSearchReaderManager(
-                    directoryReader,
-                    new RamAccountingRefreshListener(engineConfig.getCircuitBreakerService())
-                );
+                internalReaderManager = new OpenSearchReaderManager(directoryReader);
                 lastCommittedSegmentInfos = store.readLastCommittedSegmentsInfo();
                 ExternalReaderManager externalReaderManager = new ExternalReaderManager(internalReaderManager, externalRefreshListener);
                 success = true;
@@ -1982,9 +1979,9 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public CommitId flush(boolean force, boolean waitIfOngoing) throws EngineException {
+    public void flush(boolean force, boolean waitIfOngoing) throws EngineException {
         if (engineConfig.isPrimary() == false) {
-            return new CommitId(lastCommittedSegmentInfos.getId());
+            return;
         }
         ensureOpen();
         if (force && waitIfOngoing == false) {
