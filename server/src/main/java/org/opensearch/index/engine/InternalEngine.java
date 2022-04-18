@@ -214,6 +214,10 @@ public class InternalEngine extends Engine {
     @Nullable
     private volatile String forceMergeUUID;
 
+    private boolean isReadOnlyReplica() {
+        return engineConfig.isReadOnly();
+    }
+
     public InternalEngine(EngineConfig engineConfig) {
         this(engineConfig, IndexWriter.MAX_DOCS, LocalCheckpointTracker::new);
     }
@@ -269,11 +273,17 @@ public class InternalEngine extends Engine {
                     translog::getLastSyncedGlobalCheckpoint
                 );
                 this.localCheckpointTracker = createLocalCheckpointTracker(localCheckpointTrackerSupplier);
-                writer = createWriter();
-                bootstrapAppendOnlyInfoFromWriter(writer);
-                final Map<String, String> commitData = commitDataAsMap(writer);
-                historyUUID = loadHistoryUUID(commitData);
-                forceMergeUUID = commitData.get(FORCE_MERGE_UUID_KEY);
+                if (isReadOnlyReplica()) {
+                    writer = null;
+                    historyUUID = null;
+                    forceMergeUUID = null;
+                } else {
+                    writer = createWriter();
+                    bootstrapAppendOnlyInfoFromWriter(writer);
+                    final Map<String, String> commitData = commitDataAsMap(writer);
+                    historyUUID = loadHistoryUUID(commitData);
+                    forceMergeUUID = commitData.get(FORCE_MERGE_UUID_KEY);
+                }
                 indexWriter = writer;
             } catch (IOException | TranslogCorruptedException e) {
                 throw new EngineCreationFailureException(shardId, "failed to create engine", e);
@@ -551,7 +561,9 @@ public class InternalEngine extends Engine {
                 translog.currentFileGeneration()
             )
         );
-        flush(false, true);
+        if (isReadOnlyReplica() == false) {
+            flush(false, true);
+        }
         translog.trimUnreferencedReaders();
     }
 
@@ -619,7 +631,9 @@ public class InternalEngine extends Engine {
 
     private void revisitIndexDeletionPolicyOnTranslogSynced() throws IOException {
         if (combinedDeletionPolicy.hasUnreferencedCommits()) {
-            indexWriter.deleteUnusedFiles();
+            if (isReadOnlyReplica() == false) {
+                indexWriter.deleteUnusedFiles();
+            }
         }
         translog.trimUnreferencedReaders();
     }
@@ -680,6 +694,14 @@ public class InternalEngine extends Engine {
                 IOUtils.closeWhileHandlingException(internalReaderManager, indexWriter);
             }
         }
+    }
+
+    private DirectoryReader getDirectoryReader() throws IOException {
+        // for segment replication: replicas should create the reader from store, we don't want an open IW on replicas.
+        if (isReadOnlyReplica()) {
+            return DirectoryReader.open(store.directory());
+        }
+        return DirectoryReader.open(indexWriter);
     }
 
     @Override
@@ -1915,6 +1937,9 @@ public class InternalEngine extends Engine {
 
     @Override
     public void flush(boolean force, boolean waitIfOngoing) throws EngineException {
+        if (isReadOnlyReplica()) {
+            return;
+        }
         ensureOpen();
         if (force && waitIfOngoing == false) {
             assert false : "wait_if_ongoing must be true for a force flush: force=" + force + " wait_if_ongoing=" + waitIfOngoing;
@@ -2343,7 +2368,9 @@ public class InternalEngine extends Engine {
                 // no need to commit in this case!, we snapshot before we close the shard, so translog and all sync'ed
                 logger.trace("rollback indexWriter");
                 try {
-                    indexWriter.rollback();
+                    if (isReadOnlyReplica() == false) {
+                        indexWriter.rollback();
+                    }
                 } catch (AlreadyClosedException ex) {
                     failOnTragicEvent(ex);
                     throw ex;

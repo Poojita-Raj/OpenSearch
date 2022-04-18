@@ -95,6 +95,7 @@ public final class EngineConfig {
     private final CircuitBreakerService circuitBreakerService;
     private final LongSupplier globalCheckpointSupplier;
     private final Supplier<RetentionLeases> retentionLeasesSupplier;
+    private boolean isReadOnly;
 
     /**
      * A supplier of the outstanding retention leases. This is used during merged operations to determine which operations that have been
@@ -169,7 +170,8 @@ public final class EngineConfig {
         LongSupplier globalCheckpointSupplier,
         Supplier<RetentionLeases> retentionLeasesSupplier,
         LongSupplier primaryTermSupplier,
-        TombstoneDocSupplier tombstoneDocSupplier
+        TombstoneDocSupplier tombstoneDocSupplier,
+        boolean isReadOnly
     ) {
         this(
             shardId,
@@ -194,7 +196,8 @@ public final class EngineConfig {
             globalCheckpointSupplier,
             retentionLeasesSupplier,
             primaryTermSupplier,
-            tombstoneDocSupplier
+            tombstoneDocSupplier,
+            isReadOnly
         );
     }
 
@@ -224,7 +227,8 @@ public final class EngineConfig {
         LongSupplier globalCheckpointSupplier,
         Supplier<RetentionLeases> retentionLeasesSupplier,
         LongSupplier primaryTermSupplier,
-        TombstoneDocSupplier tombstoneDocSupplier
+        TombstoneDocSupplier tombstoneDocSupplier,
+        boolean isReadOnly
     ) {
         this.shardId = shardId;
         this.indexSettings = indexSettings;
@@ -237,6 +241,7 @@ public final class EngineConfig {
         this.codecService = codecService;
         this.eventListener = eventListener;
         codecName = indexSettings.getValue(INDEX_CODEC_SETTING);
+        this.isReadOnly = isReadOnly;
         // We need to make the indexing buffer for this shard at least as large
         // as the amount of memory that is available for all engines on the
         // local node so that decisions to flush segments to disk are made by
@@ -456,6 +461,10 @@ public final class EngineConfig {
      */
     public LongSupplier getPrimaryTermSupplier() {
         return primaryTermSupplier;
+    }
+
+    public boolean isReadOnly() {
+        return isReadOnly;
     }
 
     /**
