@@ -174,7 +174,8 @@ public class EngineConfigFactory {
             globalCheckpointSupplier,
             retentionLeasesSupplier,
             primaryTermSupplier,
-            tombstoneDocSupplier
+            tombstoneDocSupplier,
+            false // defaulting isReadOnly to false
         );
     }
 

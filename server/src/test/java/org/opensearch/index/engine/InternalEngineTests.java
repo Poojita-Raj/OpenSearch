@@ -3608,7 +3608,8 @@ public class InternalEngineTests extends EngineTestCase {
             () -> UNASSIGNED_SEQ_NO,
             () -> RetentionLeases.EMPTY,
             primaryTerm::get,
-            tombstoneDocSupplier()
+            tombstoneDocSupplier(),
+            config.isReadOnly()
         );
         expectThrows(EngineCreationFailureException.class, () -> new InternalEngine(brokenConfig));
 
@@ -3652,7 +3653,8 @@ public class InternalEngineTests extends EngineTestCase {
             config.getGlobalCheckpointSupplier(),
             config.retentionLeasesSupplier(),
             config.getPrimaryTermSupplier(),
-            config.getTombstoneDocSupplier()
+            config.getTombstoneDocSupplier(),
+            config.isReadOnly()
         );
         engine.close();
         engine = createEngine(configWithCustomTranslogDeletionPolicyFactory);
@@ -7256,7 +7258,8 @@ public class InternalEngineTests extends EngineTestCase {
                 config.getGlobalCheckpointSupplier(),
                 config.retentionLeasesSupplier(),
                 config.getPrimaryTermSupplier(),
-                config.getTombstoneDocSupplier()
+                config.getTombstoneDocSupplier(),
+                config.isReadOnly()
             );
             try (InternalEngine engine = createEngine(configWithWarmer)) {
                 assertThat(warmedUpReaders, empty());
