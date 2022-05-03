@@ -9,11 +9,10 @@
 package org.opensearch.indices.replication.common;
 
 import org.opensearch.OpenSearchException;
-import org.opensearch.indices.recovery.RecoveryFailedException;
 
 public interface ReplicationListener {
 
     void onDone(ReplicationState state);
 
-    void onFailure(ReplicationState state, RecoveryFailedException e, boolean sendShardFailure);
+    void onFailure(ReplicationState state, OpenSearchException e, boolean sendShardFailure);
 }

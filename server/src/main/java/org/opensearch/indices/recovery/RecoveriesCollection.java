@@ -43,6 +43,7 @@ import org.opensearch.common.util.concurrent.ConcurrentCollections;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.IndexShardClosedException;
 import org.opensearch.index.shard.ShardId;
+import org.opensearch.indices.replication.common.ReplicationListener;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.util.ArrayList;
@@ -77,7 +78,7 @@ public class RecoveriesCollection {
     public long startRecovery(
         IndexShard indexShard,
         DiscoveryNode sourceNode,
-        PeerRecoveryTargetService.RecoveryListener listener,
+        ReplicationListener listener,
         TimeValue activityTimeout
     ) {
         RecoveryTarget recoveryTarget = new RecoveryTarget(indexShard, sourceNode, listener);

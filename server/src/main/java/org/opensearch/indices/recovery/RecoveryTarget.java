@@ -60,6 +60,7 @@ import org.opensearch.index.shard.ShardId;
 import org.opensearch.index.store.Store;
 import org.opensearch.index.store.StoreFileMetadata;
 import org.opensearch.index.translog.Translog;
+import org.opensearch.indices.replication.common.ReplicationListener;
 import org.opensearch.indices.replication.common.ReplicationLuceneIndex;
 
 import java.io.IOException;
@@ -88,7 +89,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
     private final MultiFileWriter multiFileWriter;
     private final RecoveryRequestTracker requestTracker = new RecoveryRequestTracker();
     private final Store store;
-    private final PeerRecoveryTargetService.RecoveryListener listener;
+    private final ReplicationListener listener;
 
     private final AtomicBoolean finished = new AtomicBoolean();
 
@@ -107,7 +108,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
      * @param sourceNode                        source node of the recovery where we recover from
      * @param listener                          called when recovery is completed/failed
      */
-    public RecoveryTarget(IndexShard indexShard, DiscoveryNode sourceNode, PeerRecoveryTargetService.RecoveryListener listener) {
+    public RecoveryTarget(IndexShard indexShard, DiscoveryNode sourceNode, ReplicationListener listener) {
         super("recovery_status");
         this.cancellableThreads = new CancellableThreads();
         this.recoveryId = idGenerator.incrementAndGet();
@@ -261,7 +262,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
     }
 
     public void notifyListener(RecoveryFailedException e, boolean sendShardFailure) {
-        listener.onRecoveryFailure(state(), e, sendShardFailure);
+        listener.onFailure(state(), e, sendShardFailure);
     }
 
     /** mark the current recovery as done */
@@ -276,7 +277,7 @@ public class RecoveryTarget extends AbstractRefCounted implements RecoveryTarget
                 // release the initial reference. recovery files will be cleaned as soon as ref count goes to zero, potentially now
                 decRef();
             }
-            listener.onRecoveryDone(state());
+            listener.onDone(state());
         }
     }
 
