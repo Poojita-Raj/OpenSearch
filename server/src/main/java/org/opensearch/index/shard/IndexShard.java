@@ -160,6 +160,7 @@ import org.opensearch.indices.recovery.RecoveryFailedException;
 import org.opensearch.indices.recovery.RecoveryState;
 import org.opensearch.indices.recovery.RecoveryTarget;
 import org.opensearch.indices.replication.common.ReplicationListener;
+import org.opensearch.indices.replication.copy.SegmentReplicationState;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.repositories.Repository;
 import org.opensearch.rest.RestStatus;
@@ -252,6 +253,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     @Nullable
     private volatile RecoveryState recoveryState;
+
+    private volatile SegmentReplicationState segRepState;
 
     private final RecoveryStats recoveryStats = new RecoveryStats();
     private final MeanMetric refreshMetric = new MeanMetric();
@@ -398,6 +401,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         persistMetadata(path, indexSettings, shardRouting, null, logger);
         this.useRetentionLeasesInPeerRecovery = replicationTracker.hasAllPeerRecoveryRetentionLeases();
         this.refreshPendingLocationListener = new RefreshPendingLocationListener();
+        this.segRepState = new SegmentReplicationState();
     }
 
     public ThreadPool getThreadPool() {
@@ -1342,6 +1346,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         } else {
             throw new IllegalIndexShardStateException(shardId, state, "snapshot is not allowed");
         }
+    }
+
+    public void finalizeReplication(SegmentInfos infos, MetadataSnapshot expectedMetadata, long seqNo) throws IOException {
+
     }
 
     /**
@@ -3508,6 +3516,22 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     public boolean isSyncNeeded() {
         return getEngine().isTranslogSyncNeeded();
+    }
+
+    public SegmentReplicationState getReplicationState() {
+        return this.segRepState;
+    }
+
+    public void markAsReplicating() {
+        this.segRepState.setStage(SegmentReplicationState.Stage.ACTIVE);
+    }
+
+    public void markReplicationComplete() {
+        this.segRepState.setStage(SegmentReplicationState.Stage.INACTIVE);
+    }
+
+    private boolean isReplicating() {
+        return this.segRepState.getStage() == SegmentReplicationState.Stage.ACTIVE;
     }
 
     /**
