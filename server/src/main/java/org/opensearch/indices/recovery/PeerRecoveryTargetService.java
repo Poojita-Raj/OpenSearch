@@ -204,7 +204,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
     private void retryRecovery(final long recoveryId, final TimeValue retryAfter, final TimeValue activityTimeout) {
         RecoveryTarget newTarget = onGoingRecoveries.resetRecovery(recoveryId, activityTimeout);
         if (newTarget != null) {
-            threadPool.scheduleUnlessShuttingDown(retryAfter, ThreadPool.Names.GENERIC, new RecoveryRunner(newTarget.recoveryId()));
+            threadPool.scheduleUnlessShuttingDown(retryAfter, ThreadPool.Names.GENERIC, new RecoveryRunner(newTarget.getId()));
         }
     }
 
@@ -333,7 +333,7 @@ public class PeerRecoveryTargetService implements IndexEventListener {
             localNode,
             metadataSnapshot,
             recoveryTarget.state().getPrimary(),
-            recoveryTarget.recoveryId(),
+            recoveryTarget.getId(),
             startingSeqNo
         );
         return request;

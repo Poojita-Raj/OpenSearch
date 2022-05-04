@@ -33,8 +33,6 @@ import java.util.Map;
 /**
  * Represents the Lucene Index (set of files on a single shard) involved
  * in the replication process.
- *
- * @opensearch.internal
  */
 public final class ReplicationLuceneIndex extends ReplicationTimer implements ToXContentFragment, Writeable {
     private final FilesDetails filesDetails;

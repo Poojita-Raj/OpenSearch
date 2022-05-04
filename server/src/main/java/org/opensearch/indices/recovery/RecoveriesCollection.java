@@ -83,20 +83,20 @@ public class RecoveriesCollection {
     ) {
         RecoveryTarget recoveryTarget = new RecoveryTarget(indexShard, sourceNode, listener);
         startRecoveryInternal(recoveryTarget, activityTimeout);
-        return recoveryTarget.recoveryId();
+        return recoveryTarget.getId();
     }
 
     private void startRecoveryInternal(RecoveryTarget recoveryTarget, TimeValue activityTimeout) {
-        RecoveryTarget existingTarget = onGoingRecoveries.putIfAbsent(recoveryTarget.recoveryId(), recoveryTarget);
+        RecoveryTarget existingTarget = onGoingRecoveries.putIfAbsent(recoveryTarget.getId(), recoveryTarget);
         assert existingTarget == null : "found two RecoveryStatus instances with the same id";
         logger.trace(
             "{} started recovery from {}, id [{}]",
             recoveryTarget.shardId(),
             recoveryTarget.sourceNode(),
-            recoveryTarget.recoveryId()
+            recoveryTarget.getId()
         );
         threadPool.schedule(
-            new RecoveryMonitor(recoveryTarget.recoveryId(), recoveryTarget.lastAccessTime(), activityTimeout),
+            new RecoveryMonitor(recoveryTarget.getId(), recoveryTarget.lastAccessTime(), activityTimeout),
             activityTimeout,
             ThreadPool.Names.GENERIC
         );
@@ -132,8 +132,8 @@ public class RecoveriesCollection {
                     "{} restarted recovery from {}, id [{}], previous id [{}]",
                     newRecoveryTarget.shardId(),
                     newRecoveryTarget.sourceNode(),
-                    newRecoveryTarget.recoveryId(),
-                    oldRecoveryTarget.recoveryId()
+                    newRecoveryTarget.getId(),
+                    oldRecoveryTarget.getId()
                 );
                 return newRecoveryTarget;
             } else {
@@ -141,10 +141,10 @@ public class RecoveriesCollection {
                     "{} recovery could not be reset as it is already cancelled, recovery from {}, id [{}], previous id [{}]",
                     newRecoveryTarget.shardId(),
                     newRecoveryTarget.sourceNode(),
-                    newRecoveryTarget.recoveryId(),
-                    oldRecoveryTarget.recoveryId()
+                    newRecoveryTarget.getId(),
+                    oldRecoveryTarget.getId()
                 );
-                cancelRecovery(newRecoveryTarget.recoveryId(), "recovery cancelled during reset");
+                cancelRecovery(newRecoveryTarget.getId(), "recovery cancelled during reset");
                 return null;
             }
         } catch (Exception e) {
@@ -192,7 +192,7 @@ public class RecoveriesCollection {
                 "{} canceled recovery from {}, id [{}] (reason [{}])",
                 removed.shardId(),
                 removed.sourceNode(),
-                removed.recoveryId(),
+                removed.getId(),
                 reason
             );
             removed.cancel(reason);
@@ -215,7 +215,7 @@ public class RecoveriesCollection {
                 "{} failing recovery from {}, id [{}]. Send shard failure: [{}]",
                 removed.shardId(),
                 removed.sourceNode(),
-                removed.recoveryId(),
+                removed.getId(),
                 sendShardFailure
             );
             removed.fail(e, sendShardFailure);
@@ -226,7 +226,7 @@ public class RecoveriesCollection {
     public void markRecoveryAsDone(long id) {
         RecoveryTarget removed = onGoingRecoveries.remove(id);
         if (removed != null) {
-            logger.trace("{} marking recovery from {} as done, id [{}]", removed.shardId(), removed.sourceNode(), removed.recoveryId());
+            logger.trace("{} marking recovery from {} as done, id [{}]", removed.shardId(), removed.sourceNode(), removed.getId());
             removed.markAsDone();
         }
     }
@@ -260,7 +260,7 @@ public class RecoveriesCollection {
                 "{} canceled recovery from {}, id [{}] (reason [{}])",
                 removed.shardId(),
                 removed.sourceNode(),
-                removed.recoveryId(),
+                removed.getId(),
                 reason
             );
             removed.cancel(reason);
