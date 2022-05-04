@@ -14,8 +14,6 @@ import org.opensearch.common.io.stream.Writeable;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.ToXContentFragment;
 import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.indices.replication.common.ReplicationLuceneIndex;
-import org.opensearch.indices.replication.common.ReplicationTimer;
 
 import java.io.IOException;
 
@@ -59,7 +57,11 @@ public class ReplicationState implements ToXContentFragment, Writeable {
         if (timer.stopTime() > 0) {
             builder.timeField(ReplicationState.Fields.STOP_TIME_IN_MILLIS, ReplicationState.Fields.STOP_TIME, timer.stopTime());
         }
-        builder.humanReadableField(ReplicationState.Fields.TOTAL_TIME_IN_MILLIS, ReplicationState.Fields.TOTAL_TIME, new TimeValue(timer.time()));
+        builder.humanReadableField(
+            ReplicationState.Fields.TOTAL_TIME_IN_MILLIS,
+            ReplicationState.Fields.TOTAL_TIME,
+            new TimeValue(timer.time())
+        );
 
         builder.startObject(ReplicationState.Fields.INDEX);
         index.toXContent(builder, params);

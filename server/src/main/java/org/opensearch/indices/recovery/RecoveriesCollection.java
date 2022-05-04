@@ -75,12 +75,7 @@ public class RecoveriesCollection {
      *
      * @return the id of the new recovery.
      */
-    public long startRecovery(
-        IndexShard indexShard,
-        DiscoveryNode sourceNode,
-        ReplicationListener listener,
-        TimeValue activityTimeout
-    ) {
+    public long startRecovery(IndexShard indexShard, DiscoveryNode sourceNode, ReplicationListener listener, TimeValue activityTimeout) {
         RecoveryTarget recoveryTarget = new RecoveryTarget(indexShard, sourceNode, listener);
         startRecoveryInternal(recoveryTarget, activityTimeout);
         return recoveryTarget.getId();
@@ -89,12 +84,7 @@ public class RecoveriesCollection {
     private void startRecoveryInternal(RecoveryTarget recoveryTarget, TimeValue activityTimeout) {
         RecoveryTarget existingTarget = onGoingRecoveries.putIfAbsent(recoveryTarget.getId(), recoveryTarget);
         assert existingTarget == null : "found two RecoveryStatus instances with the same id";
-        logger.trace(
-            "{} started recovery from {}, id [{}]",
-            recoveryTarget.shardId(),
-            recoveryTarget.sourceNode(),
-            recoveryTarget.getId()
-        );
+        logger.trace("{} started recovery from {}, id [{}]", recoveryTarget.shardId(), recoveryTarget.sourceNode(), recoveryTarget.getId());
         threadPool.schedule(
             new RecoveryMonitor(recoveryTarget.getId(), recoveryTarget.lastAccessTime(), activityTimeout),
             activityTimeout,
