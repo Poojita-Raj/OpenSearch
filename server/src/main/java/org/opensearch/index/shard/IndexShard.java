@@ -161,6 +161,7 @@ import org.opensearch.indices.recovery.RecoveryFailedException;
 import org.opensearch.indices.recovery.RecoveryListener;
 import org.opensearch.indices.recovery.RecoveryState;
 import org.opensearch.indices.recovery.RecoveryTarget;
+import org.opensearch.indices.replication.SegmentReplicationTargetService;
 import org.opensearch.indices.replication.checkpoint.SegmentReplicationCheckpointPublisher;
 import org.opensearch.indices.replication.checkpoint.ReplicationCheckpoint;
 import org.opensearch.indices.replication.checkpoint.SegmentReplicationCheckpointPublisher;
@@ -3002,6 +3003,26 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 executeRecovery("from store", recoveryState, recoveryListener, this::recoverFromStore);
                 break;
             case PEER:
+                try {
+                    markAsRecovering("from " + recoveryState.getSourceNode(), recoveryState);
+                    if (indexSettings.isSegrepEnabled()) {
+                        // Start a "Recovery" using segment replication. This ensures the shard is tracked by the primary
+                        // and started with the latest set of segments.
+                        SegmentReplicationTargetService.startRecovery(
+                            this,
+                            recoveryState.getTargetNode(),
+                            recoveryState.getSourceNode(),
+                            replicationSource,
+                            segRepListener
+                        );
+                    } else {
+                        recoveryTargetService.startRecovery(this, recoveryState.getSourceNode(), recoveryListener);
+                    }
+                } catch (Exception e) {
+                    failShard("corrupted preexisting index", e);
+                    recoveryListener.onRecoveryFailure(recoveryState, new RecoveryFailedException(recoveryState, null, e), true);
+                }
+                break;
                 try {
                     markAsRecovering("from " + recoveryState.getSourceNode(), recoveryState);
                     recoveryTargetService.startRecovery(this, recoveryState.getSourceNode(), recoveryListener);

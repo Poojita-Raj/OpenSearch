@@ -47,6 +47,10 @@ public class SegmentReplicationSourceFactory {
         );
     }
 
+    public TransportService getTransportService() {
+        return transportService;
+    }
+
     private DiscoveryNode getPrimaryNode(ShardId shardId) {
         ShardRouting primaryShard = clusterService.state().routingTable().shardRoutingTable(shardId).primaryShard();
         return clusterService.state().nodes().get(primaryShard.currentNodeId());
