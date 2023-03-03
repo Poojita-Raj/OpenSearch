@@ -104,8 +104,8 @@ public class IndexingIT extends OpenSearchRestTestCase {
         logger.info("cluster discovered: {}", nodes.toString());
         Settings.Builder settings = Settings.builder()
             .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
-            .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1);
-            //.put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT);
+            .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1)
+            .put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT);
         final String index = "index1";
         final String index2 = "index2";
         createIndex(index, settings.build());
@@ -118,7 +118,7 @@ public class IndexingIT extends OpenSearchRestTestCase {
         assertOK(client().performRequest(new Request("POST", index2 + "/_refresh")));
 
         assertSeqNoOnShards(index, nodes, 50, client());
-        //assertSeqNoOnShards(index2, nodes, 50, client());
+        assertSeqNoOnShards(index2, nodes, 50, client());
     }
 
     /*public void testIndexVersionPropagation() throws Exception {

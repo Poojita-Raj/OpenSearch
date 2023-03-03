@@ -67,9 +67,9 @@ for (Version bwcVersion : BuildParams.bwcVersions.wireCompatible) {
       setting 'path.repo', "${buildDir}/cluster/shared/repo/${baseName}"
     }
     "${baseName}segrep" {
-      versions = [bwcVersion.toString(), project.version]
+      versions = ["2.5.0", "2.6.0"]
       numberOfNodes = 2
-      //systemProperty 'opensearch.experimental.feature.replication_type.enabled', 'true'
+      systemProperty 'opensearch.experimental.feature.replication_type.enabled', 'true'
       setting 'path.repo', "${buildDir}/cluster/shared/repo/${baseName}segrep"
     }
   }
