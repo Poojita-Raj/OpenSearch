@@ -39,6 +39,7 @@ import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.similarities.Similarity;
+import org.opensearch.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
@@ -102,6 +103,20 @@ public final class EngineConfig {
     private final Supplier<RetentionLeases> retentionLeasesSupplier;
     private final boolean isReadOnlyReplica;
     private final BooleanSupplier primaryModeSupplier;
+
+    public Version getLoadOpensearchCodecVersion() {
+        return loadOpensearchCodecVersion;
+    }
+
+    public void setLoadOpensearchCodecVersion(Version loadOpensearchCodecVersion) {
+        this.loadOpensearchCodecVersion = loadOpensearchCodecVersion;
+    }
+
+    private Version loadOpensearchCodecVersion;
+
+
+
+
 
     /**
      * A supplier of the outstanding retention leases. This is used during merged operations to determine which operations that have been
@@ -244,6 +259,10 @@ public final class EngineConfig {
      * </p>
      */
     public Codec getCodec() {
+        return codecService.codec(codecName);
+    }
+
+    public Codec getBWCCodec(String codecName) {
         return codecService.codec(codecName);
     }
 

@@ -34,6 +34,7 @@ package org.opensearch.index.engine;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
@@ -90,6 +91,7 @@ import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
+import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.fieldvisitor.IdOnlyFieldVisitor;
 import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
@@ -2486,8 +2488,14 @@ public class InternalEngine extends Engine {
         iwc.setMergePolicy(new OpenSearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
-        iwc.setCodec(engineConfig.getCodec());
-        logger.info("set codec:" + engineConfig.getCodec().getName());
+        if (engineConfig.getLoadOpensearchCodecVersion() != null) {
+            Codec bwcCodec = engineConfig.getBWCCodec(CodecService.OpensearchVersionCodecs.get(engineConfig.getLoadOpensearchCodecVersion()));
+            logger.info("setting bwc codec:" + bwcCodec.getName());
+            iwc.setCodec(bwcCodec);
+        } else {
+            logger.info("setting codec:" + engineConfig.getCodec().getName());
+            iwc.setCodec(engineConfig.getCodec());
+        }
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh
         if (config().getIndexSort() != null) {
             iwc.setIndexSort(config().getIndexSort());
@@ -2668,6 +2676,8 @@ public class InternalEngine extends Engine {
                 commitData.put(MAX_UNSAFE_AUTO_ID_TIMESTAMP_COMMIT_ID, Long.toString(maxUnsafeAutoIdTimestamp.get()));
                 commitData.put(HISTORY_UUID_KEY, historyUUID);
                 commitData.put(Engine.MIN_RETAINED_SEQNO, Long.toString(softDeletesPolicy.getMinRetainedSeqNo()));
+                //write in codec to commitData
+                //indexWriter.getConfig().getCodec();
                 final String currentForceMergeUUID = forceMergeUUID;
                 if (currentForceMergeUUID != null) {
                     commitData.put(FORCE_MERGE_UUID_KEY, currentForceMergeUUID);

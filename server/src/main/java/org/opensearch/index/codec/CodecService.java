@@ -36,10 +36,12 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.lucene94.Lucene94Codec;
 import org.apache.lucene.codecs.lucene94.Lucene94Codec.Mode;
+import org.opensearch.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.MapBuilder;
 import org.opensearch.index.mapper.MapperService;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -58,8 +60,10 @@ public class CodecService {
     public static final String BEST_COMPRESSION_CODEC = "best_compression";
     /** the raw unfiltered lucene default. useful for testing */
     public static final String LUCENE_DEFAULT_CODEC = "lucene_default";
+    public static Map<Version, String> OpensearchVersionCodecs = new HashMap<>();
 
     public CodecService(@Nullable MapperService mapperService, Logger logger) {
+        loadMap();
         final MapBuilder<String, Codec> codecs = MapBuilder.<String, Codec>newMapBuilder();
         if (mapperService == null) {
             codecs.put(DEFAULT_CODEC, new Lucene94Codec());
@@ -74,6 +78,25 @@ public class CodecService {
         }
         this.codecs = codecs.immutableMap();
     }
+
+    public void loadMap() {
+        OpensearchVersionCodecs.put(Version.fromString("3.0.0"), "Lucene95");
+        OpensearchVersionCodecs.put(Version.fromString("2.7.0"), "Lucene95");
+        OpensearchVersionCodecs.put(Version.fromString("2.6.0"), "Lucene95");
+        OpensearchVersionCodecs.put(Version.fromString("2.4.2"), "Lucene95");
+        OpensearchVersionCodecs.put(Version.fromString("2.5.1"), "Lucene94");
+        OpensearchVersionCodecs.put(Version.fromString("2.5.0"), "Lucene94");
+        OpensearchVersionCodecs.put(Version.fromString("2.4.1"), "Lucene94");
+        OpensearchVersionCodecs.put(Version.fromString("2.4.1"), "Lucene94");
+        OpensearchVersionCodecs.put(Version.fromString("2.4.0"), "Lucene94");
+        OpensearchVersionCodecs.put(Version.fromString("2.3.0"), "Lucene93");
+        OpensearchVersionCodecs.put(Version.fromString("2.2.1"), "Lucene93");
+        OpensearchVersionCodecs.put(Version.fromString("2.2.0"), "Lucene93");
+        OpensearchVersionCodecs.put(Version.fromString("2.1.0"), "Lucene92");
+        OpensearchVersionCodecs.put(Version.fromString("2.0.1"), "Lucene91");
+        OpensearchVersionCodecs.put(Version.fromString("2.0.0"), "Lucene91");
+    }
+
 
     public Codec codec(String name) {
         Codec codec = codecs.get(name);
