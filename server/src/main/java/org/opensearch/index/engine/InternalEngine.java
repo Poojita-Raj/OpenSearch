@@ -69,6 +69,7 @@ import org.apache.lucene.util.InfoStream;
 import org.opensearch.Assertions;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.index.IndexRequest;
+import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.SuppressForbidden;
@@ -90,6 +91,7 @@ import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.core.internal.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
+import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.fieldvisitor.IdOnlyFieldVisitor;
 import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
@@ -2483,7 +2485,16 @@ public class InternalEngine extends Engine {
         iwc.setMergePolicy(new OpenSearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
-        iwc.setCodec(engineConfig.getCodec());
+        //get diff codec - get bwc codec
+        //flag to mention that rolling upgrade is done - set by polling (IndexService will know)
+        //create a method on IndexShard - tells us upgrade is done so engineConfig codec to latest one
+        if (engineConfig.getLoadOpensearchCodecVersion() != null) {
+            iwc.setCodec(engineConfig.getBWCCodec(CodecService.OpensearchVersionCodecs.get(engineConfig.getLoadOpensearchCodecVersion()))); //min version that we track somewhere)
+        } else {
+            iwc.setCodec(engineConfig.getCodec());
+        }
+        //store.getMetadata().getCommitUserData() - read from here the bwc codec
+        //restart engine and block ops (in index shard)
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh
         if (config().getIndexSort() != null) {
             iwc.setIndexSort(config().getIndexSort());
@@ -2664,6 +2675,8 @@ public class InternalEngine extends Engine {
                 commitData.put(MAX_UNSAFE_AUTO_ID_TIMESTAMP_COMMIT_ID, Long.toString(maxUnsafeAutoIdTimestamp.get()));
                 commitData.put(HISTORY_UUID_KEY, historyUUID);
                 commitData.put(Engine.MIN_RETAINED_SEQNO, Long.toString(softDeletesPolicy.getMinRetainedSeqNo()));
+                //write in codec to commitData
+                //indexWriter.getConfig().getCodec();
                 final String currentForceMergeUUID = forceMergeUUID;
                 if (currentForceMergeUUID != null) {
                     commitData.put(FORCE_MERGE_UUID_KEY, currentForceMergeUUID);

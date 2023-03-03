@@ -912,7 +912,7 @@ public class IndicesService extends AbstractLifecycleComponent
             .collect(Collectors.toList());
         if (engineFactories.isEmpty()) {
             if (idxSettings.isSegRepEnabled()) {
-                return new NRTReplicationEngineFactory();
+                return new NRTReplicationEngineFactory(clusterService);
             }
             if (idxSettings.isRemoteSnapshot()) {
                 return config -> new ReadOnlyEngine(config, new SeqNoStats(0, 0, 0), new TranslogStats(), true, Function.identity(), false);

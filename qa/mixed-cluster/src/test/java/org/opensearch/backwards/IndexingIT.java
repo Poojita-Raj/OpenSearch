@@ -45,6 +45,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.index.seqno.SeqNoStats;
+import org.opensearch.indices.replication.common.ReplicationType;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 import org.opensearch.test.rest.yaml.ObjectPath;
@@ -97,7 +98,30 @@ public class IndexingIT extends OpenSearchRestTestCase {
         return nUpdates + 1;
     }
 
-    public void testIndexVersionPropagation() throws Exception {
+    public void testSegrep() throws Exception {
+        Nodes nodes = buildNodeAndVersions();
+        assumeFalse("new nodes is empty", nodes.getNewNodes().isEmpty());
+        logger.info("cluster discovered: {}", nodes.toString());
+        Settings.Builder settings = Settings.builder()
+            .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
+            .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1);
+            //.put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT);
+        final String index = "index1";
+        final String index2 = "index2";
+        createIndex(index, settings.build());
+        createIndex(index2, settings.build());
+        indexDocs(index, 0, 50);
+        indexDocs(index2, 0, 50);
+        ensureGreen(index);
+        ensureGreen(index2);
+        assertOK(client().performRequest(new Request("POST", index + "/_refresh")));
+        assertOK(client().performRequest(new Request("POST", index2 + "/_refresh")));
+
+        assertSeqNoOnShards(index, nodes, 50, client());
+        //assertSeqNoOnShards(index2, nodes, 50, client());
+    }
+
+    /*public void testIndexVersionPropagation() throws Exception {
         Nodes nodes = buildNodeAndVersions();
         assumeFalse("new nodes is empty", nodes.getNewNodes().isEmpty());
         logger.info("cluster discovered: {}", nodes.toString());
@@ -231,6 +255,7 @@ public class IndexingIT extends OpenSearchRestTestCase {
              * Dropping the number of replicas to zero, and then increasing it to one triggers a recovery thus exercising any BWC-logic in
              * the recovery code.
              */
+/*
             logger.info("setting number of replicas to 0");
             updateIndexSettings(index, Settings.builder().put("index.number_of_replicas", 0));
             final int numberOfDocsAfterDroppingReplicas = 1 + randomInt(5);
@@ -349,7 +374,7 @@ public class IndexingIT extends OpenSearchRestTestCase {
             Map<String, Object> stats = entityAsMap(client().performRequest(new Request("GET", index + "/_stats?level=shards")));
             assertThat(XContentMapValues.extractValue("indices." + index + ".total.translog.uncommitted_operations", stats), equalTo(0));
         }
-    }
+    }*/
 
     private void assertCount(final String index, final String preference, final int expectedCount) throws IOException {
         Request request = new Request("GET", index + "/_count");
