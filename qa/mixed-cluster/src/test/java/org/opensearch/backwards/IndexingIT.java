@@ -45,6 +45,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.index.seqno.SeqNoStats;
+import org.opensearch.indices.replication.common.ReplicationType;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 import org.opensearch.test.rest.yaml.ObjectPath;
@@ -96,6 +97,35 @@ public class IndexingIT extends OpenSearchRestTestCase {
             indexThread.join();
         }
         return nUpdates + 1;
+    }
+
+    public void testSegrep() throws Exception {
+        Nodes nodes = buildNodeAndVersions();
+        assumeFalse("new nodes is empty", nodes.getNewNodes().isEmpty());
+        logger.info("cluster discovered: {}", nodes.toString());
+        Settings.Builder settings = Settings.builder()
+            .put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
+            .put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1)
+            .put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT);
+        final String index = "index1";
+        final String index2 = "index2";
+        final String index3 = "index3";
+        createIndex(index, settings.build());
+        createIndex(index2, settings.build());
+        createIndex(index3, settings.build());
+        indexDocs(index, 0, 50);
+        indexDocs(index2, 0, 50);
+        indexDocs(index3, 0, 50);
+        ensureGreen(index);
+        ensureGreen(index2);
+        ensureGreen(index3);
+        assertOK(client().performRequest(new Request("POST", index + "/_refresh")));
+        assertOK(client().performRequest(new Request("POST", index2 + "/_refresh")));
+        assertOK(client().performRequest(new Request("POST", index3 + "/_refresh")));
+
+        assertSeqNoOnShards(index, nodes, 50, client());
+        assertSeqNoOnShards(index2, nodes, 50, client());
+        assertSeqNoOnShards(index3, nodes, 50, client());
     }
 
     public void testIndexVersionPropagation() throws Exception {

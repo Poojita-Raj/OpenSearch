@@ -56,7 +56,11 @@ import org.apache.lucene.store.FilterDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.ThreadInterruptedException;
+import org.opensearch.Version;
 import org.opensearch.cluster.metadata.DataStream;
+import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.cluster.node.DiscoveryNodes;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.core.Assertions;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.OpenSearchException;
@@ -326,6 +330,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     private volatile boolean useRetentionLeasesInPeerRecovery;
     private final Store remoteStore;
     private final BiFunction<IndexSettings, ShardRouting, TranslogFactory> translogFactorySupplier;
+    private AtomicBoolean isUpgrading;
 
     private final boolean isTimeSeriesIndex;
 
@@ -1548,7 +1553,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         shardRouting.primary()
                             ? store.getSegmentMetadataMap(segmentInfos).values().stream().mapToLong(StoreFileMetadata::length).sum()
                             : store.stats(StoreStats.UNKNOWN_RESERVED_BYTES).getSizeInBytes(),
-                        getEngine().config().getCodec().getName()
+                        getEngine().config().getCodecName()
                     )
                 );
             } catch (IOException e) {
@@ -1603,7 +1608,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * @param requestCheckpoint       received checkpoint that is checked for processing
      * @return true if checkpoint should be processed
      */
-    public final boolean shouldProcessCheckpoint(ReplicationCheckpoint requestCheckpoint) {
+    public final boolean shouldProcessCheckpoint(ReplicationCheckpoint requestCheckpoint, IndicesService indicesService) {
         if (isSegmentReplicationAllowed() == false) {
             return false;
         }
@@ -1624,11 +1629,43 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             );
             return false;
         }
+        //if replica and pri not using same codec
         if (localCheckpoint.getCodec().equals(requestCheckpoint.getCodec()) == false) {
-            logger.trace(
-                () -> new ParameterizedMessage("Shard does not support the received lucene codec version {}", requestCheckpoint.getCodec())
-            );
-            return false;
+            logger.info("local checkpoint codec != request checkpoint codec");
+            DiscoveryNodes nodes = indicesService.clusterService().state().nodes();
+            //replica received this checkpt from pri
+            // if replica (local) version >= pri version then ok process
+            //check if local version > incoming version then go ahead and process
+            Version localVersion = nodes.getLocalNode().getVersion();
+            logger.info("local version = {}", localVersion);
+            ShardId id = requestCheckpoint.getShardId();
+            logger.info("request checkpoint shardId = {}", id);
+            String nodeId = null;
+            //find nodeId of node  shardId is on
+            for (IndexService is: indicesService) {
+                for (IndexShard indexShard: is) {
+                    if (indexShard.shardRouting.shardId() == id) {
+                        nodeId = indexShard.shardRouting.currentNodeId();
+                        break;
+                    }
+                }
+            }
+            logger.info("request checkpoint nodeId = {}", nodeId);
+            //find node shardId is on
+            for(DiscoveryNode node: nodes) {
+                if (node.getId().equals(nodeId)) {
+                    logger.info(" nodeId version= {}", node.getVersion());
+                    //if replica version is not greater or equal to pri version then can't read it
+                    if (localVersion.onOrAfter(node.getVersion()) == false) {
+                        logger.info(
+                            () -> new ParameterizedMessage("Shard does not support the received lucene codec version {}", requestCheckpoint.getCodec())
+                        );
+                        return false;
+                    }
+                    break;
+                }
+            }
+            return true;
         }
         return true;
     }
@@ -3277,7 +3314,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         recoveryState.getVerifyIndex().checkIndexTime(Math.max(0, TimeValue.nsecToMSec(System.nanoTime() - timeNS)));
     }
 
-    Engine getEngine() {
+    public Engine getEngine() {
         Engine engine = getEngineOrNull();
         if (engine == null) {
             throw new AlreadyClosedException("engine is closed");
@@ -4343,7 +4380,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     /**
      * Rollback the current engine to the safe commit, then replay local translog up to the global checkpoint.
      */
-    void resetEngineToGlobalCheckpoint() throws IOException {
+    public void resetEngineToGlobalCheckpoint() throws IOException {
         assert Thread.holdsLock(mutex) == false : "resetting engine under mutex";
         assert getActiveOperationsCount() == OPERATIONS_BLOCKED : "resetting engine without blocking operations; active operations are ["
             + getActiveOperations()

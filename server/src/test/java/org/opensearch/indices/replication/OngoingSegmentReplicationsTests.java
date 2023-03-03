@@ -8,6 +8,7 @@
 
 package org.opensearch.indices.replication;
 
+import org.apache.lucene.util.Version;
 import org.junit.Assert;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.metadata.IndexMetadata;
@@ -48,7 +49,7 @@ import static org.mockito.Mockito.when;
 public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
 
     private final IndicesService mockIndicesService = mock(IndicesService.class);
-    private ReplicationCheckpoint testCheckpoint, olderCodecTestCheckpoint;
+    private ReplicationCheckpoint testCheckpoint, customTestCheckpoint;
     private DiscoveryNode primaryDiscoveryNode;
     private DiscoveryNode replicaDiscoveryNode;
     private IndexShard primary;
@@ -59,6 +60,12 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
     final Settings settings = Settings.builder()
         .put("node.name", SegmentReplicationTargetServiceTests.class.getSimpleName())
         .put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT)
+        .put("index.lucene.version", Version.LUCENE_9_5_0)
+        .build();
+    final Settings settings2 = Settings.builder()
+        .put("node.name", SegmentReplicationTargetServiceTests.class.getSimpleName())
+        .put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT)
+        .put("index.lucene.version", Version.LUCENE_9_6_0)
         .build();
     final ClusterSettings clusterSettings = new ClusterSettings(settings, ClusterSettings.BUILT_IN_CLUSTER_SETTINGS);
     final RecoverySettings recoverySettings = new RecoverySettings(settings, clusterSettings);
@@ -66,7 +73,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        primary = newStartedShard(true, settings);
+        primary = newStartedShard(true, settings2);
         replica = newShard(false, settings, new NRTReplicationEngineFactory());
         recoverReplica(replica, primary, true);
         replicaDiscoveryNode = replica.recoveryState().getTargetNode();
@@ -79,7 +86,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
 
         // This mirrors the creation of the ReplicationCheckpoint inside CopyState
         testCheckpoint = new ReplicationCheckpoint(testShardId, primary.getOperationPrimaryTerm(), 0L, 0L, defaultCodecName);
-        olderCodecTestCheckpoint = new ReplicationCheckpoint(testShardId, primary.getOperationPrimaryTerm(), 0L, 0L, "Lucene94");
+        customTestCheckpoint = new ReplicationCheckpoint(testShardId, primary.getOperationPrimaryTerm(), 0L, 0L, "customLucene95Codec");
         IndexService mockIndexService = mock(IndexService.class);
         when(mockIndicesService.indexServiceSafe(testShardId.getIndex())).thenReturn(mockIndexService);
         when(mockIndexService.getShard(testShardId.id())).thenReturn(primary);
@@ -103,6 +110,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
@@ -111,7 +119,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
         final CopyState copyState = replications.prepareForReplication(request, segmentSegmentFileChunkWriter);
     }
 
-    public void testFailCodecCompatibilityCheck() throws Exception {
+    public void testSuccessfulCustomCodecCompatibilityCheck() throws Exception {
         indexDoc(primary, "1", "{\"foo\" : \"baz\"}", XContentType.JSON, "foobar");
         primary.refresh("Test");
         OngoingSegmentReplications replications = spy(new OngoingSegmentReplications(mockIndicesService, recoverySettings));
@@ -120,16 +128,17 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
-            olderCodecTestCheckpoint
+            primaryDiscoveryNode,
+            customTestCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
             listener.onResponse(null);
         };
-        try {
+        //try {
             final CopyState copyState = replications.prepareForReplication(request, segmentSegmentFileChunkWriter);
-        } catch (CancellableThreads.ExecutionCancelledException ex) {
-            Assert.assertTrue(ex.getMessage().contains("Requested unsupported codec version"));
-        }
+        //} catch (CancellableThreads.ExecutionCancelledException ex) {
+        //    Assert.assertTrue(ex.getMessage().contains("Requested unsupported codec version"));
+        //}
     }
 
     public void testPrepareAndSendSegments() throws IOException {
@@ -140,6 +149,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
@@ -181,6 +191,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             primaryDiscoveryNode,
+            replicaDiscoveryNode,
             testCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
@@ -207,6 +218,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             primaryDiscoveryNode,
+            replicaDiscoveryNode,
             testCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
@@ -251,6 +263,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             primaryDiscoveryNode,
+            replicaDiscoveryNode,
             testCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
@@ -265,6 +278,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             secondReplica.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         replications.prepareForReplication(secondRequest, segmentSegmentFileChunkWriter);
@@ -313,6 +327,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         final FileChunkWriter segmentSegmentFileChunkWriter = (fileMetadata, position, content, lastChunk, totalTranslogOps, listener) -> {
@@ -330,6 +345,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         // mock the FileChunkWriter so we can assert its ever called.
@@ -376,6 +392,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica.routingEntry().allocationId().getId(),
             primaryDiscoveryNode,
+            replicaDiscoveryNode,
             testCheckpoint
         );
 
@@ -386,6 +403,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica_2.routingEntry().allocationId().getId(),
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         replications.prepareForReplication(secondRequest, mock(FileChunkWriter.class));
@@ -409,7 +427,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
 
         OngoingSegmentReplications replications = new OngoingSegmentReplications(mockIndicesService, recoverySettings);
         final String replicaAllocationId = replica.routingEntry().allocationId().getId();
-        final CheckpointInfoRequest request = new CheckpointInfoRequest(1L, replicaAllocationId, primaryDiscoveryNode, testCheckpoint);
+        final CheckpointInfoRequest request = new CheckpointInfoRequest(1L, replicaAllocationId, primaryDiscoveryNode, replicaDiscoveryNode, testCheckpoint);
 
         final CopyState copyState = replications.prepareForReplication(request, mock(FileChunkWriter.class));
         assertEquals(1, copyState.refCount());
@@ -419,6 +437,7 @@ public class OngoingSegmentReplicationsTests extends IndexShardTestCase {
             1L,
             replica_2AllocationId,
             replicaDiscoveryNode,
+            primaryDiscoveryNode,
             testCheckpoint
         );
         replications.prepareForReplication(secondRequest, mock(FileChunkWriter.class));

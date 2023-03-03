@@ -47,6 +47,8 @@ import org.opensearch.index.IndexingPressureService;
 import org.opensearch.index.store.remote.filecache.FileCache;
 import org.opensearch.index.store.remote.filecache.FileCacheCleaner;
 import org.opensearch.index.store.remote.filecache.FileCacheFactory;
+import org.opensearch.indices.replication.SegmentReplicationRollingUpgradeListener;
+import org.opensearch.indices.replication.SegmentReplicationRollingUpgradeService;
 import org.opensearch.indices.replication.SegmentReplicationSourceFactory;
 import org.opensearch.indices.replication.SegmentReplicationTargetService;
 import org.opensearch.indices.replication.SegmentReplicationSourceService;
@@ -1091,6 +1093,8 @@ public class Node implements Closeable {
                     b.bind(SegmentReplicationSourceService.class)
                         .toInstance(new SegmentReplicationSourceService(indicesService, transportService, recoverySettings));
                 }
+                b.bind(SegmentReplicationRollingUpgradeService.class)
+                    .toInstance(new SegmentReplicationRollingUpgradeService(indicesService, clusterService.getClusterApplierService()));
                 b.bind(HttpServerTransport.class).toInstance(httpServerTransport);
                 pluginComponents.stream().forEach(p -> b.bind((Class) p.getClass()).toInstance(p));
                 b.bind(PersistentTasksService.class).toInstance(persistentTasksService);

@@ -33,6 +33,7 @@
 package org.opensearch.index.engine;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
@@ -89,6 +90,7 @@ import org.opensearch.common.util.concurrent.ReleasableLock;
 import org.opensearch.common.util.io.IOUtils;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
+import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.fieldvisitor.IdOnlyFieldVisitor;
 import org.opensearch.index.mapper.IdFieldMapper;
 import org.opensearch.index.mapper.ParseContext;
@@ -554,6 +556,10 @@ public class InternalEngine extends Engine {
     @Override
     public long getWritingBytes() {
         return indexWriter.getFlushingBytes() + versionMap.getRefreshingBytes();
+    }
+
+    public IndexWriter getIndexWriter() {
+        return indexWriter;
     }
 
     private ExternalReaderManager createReaderManager(RefreshWarmerListener externalRefreshListener) throws EngineException {
@@ -2257,6 +2263,15 @@ public class InternalEngine extends Engine {
         }
     }
 
+    public IndexWriter createWriterFromConfig(IndexWriterConfig indexWriterConfig) throws IOException {
+        try {
+            return createWriter(store.directory(), indexWriterConfig);
+        } catch (LockObtainFailedException ex) {
+            logger.warn("could not lock IndexWriter", ex);
+            throw ex;
+        }
+    }
+
     // pkg-private for testing
     IndexWriter createWriter(Directory directory, IndexWriterConfig iwc) throws IOException {
         if (Assertions.ENABLED) {
@@ -2266,7 +2281,7 @@ public class InternalEngine extends Engine {
         }
     }
 
-    private IndexWriterConfig getIndexWriterConfig() {
+    public IndexWriterConfig getIndexWriterConfig() {
         final IndexWriterConfig iwc = new IndexWriterConfig(engineConfig.getAnalyzer());
         iwc.setCommitOnClose(false); // we by default don't commit on close
         iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
@@ -2317,7 +2332,21 @@ public class InternalEngine extends Engine {
         iwc.setMergePolicy(new OpenSearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
-        iwc.setCodec(engineConfig.getCodec());
+        // get diff codec - get bwc codec
+        // flag to mention that rolling upgrade is done - set by polling (IndexService will know)
+        // create a method on IndexShard - tells us upgrade is done so engineConfig codec to latest one
+        if (engineConfig.getClusterMinNodeVersion() != null) {
+                Codec setcodec = engineConfig.getBWCCodec(CodecService.opensearchVersionToLuceneCodec.get(engineConfig.getClusterMinNodeVersion()));
+            logger.info("setting bwc codec to {}", setcodec);
+                iwc.setCodec(setcodec);
+                engineConfig.setCodecName(setcodec.getName());
+        } else {
+            logger.info("setting regular codec to {}", engineConfig.getCodec());
+            iwc.setCodec(engineConfig.getCodec());
+            engineConfig.setCodecName(engineConfig.getCodec().getName());
+        }
+        // store.getMetadata().getCommitUserData() - read from here the bwc codec
+        // restart engine and block ops (in index shard)
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh
         if (config().getIndexSort() != null) {
             iwc.setIndexSort(config().getIndexSort());
@@ -2501,6 +2530,8 @@ public class InternalEngine extends Engine {
                 commitData.put(MAX_UNSAFE_AUTO_ID_TIMESTAMP_COMMIT_ID, Long.toString(maxUnsafeAutoIdTimestamp.get()));
                 commitData.put(HISTORY_UUID_KEY, historyUUID);
                 commitData.put(Engine.MIN_RETAINED_SEQNO, Long.toString(softDeletesPolicy.getMinRetainedSeqNo()));
+                // write in codec to commitData
+                // indexWriter.getConfig().getCodec();
                 final String currentForceMergeUUID = forceMergeUUID;
                 if (currentForceMergeUUID != null) {
                     commitData.put(FORCE_MERGE_UUID_KEY, currentForceMergeUUID);

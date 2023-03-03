@@ -31,6 +31,8 @@
 
 package org.opensearch.index.engine;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.index.LeafReader;
@@ -40,6 +42,7 @@ import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.similarities.Similarity;
+import org.opensearch.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Setting.Property;
@@ -75,13 +78,15 @@ import java.util.function.Supplier;
  * @opensearch.internal
  */
 public final class EngineConfig {
+
+    private static final Logger logger = LogManager.getLogger(EngineConfig.class);
     private final ShardId shardId;
     private final IndexSettings indexSettings;
     private final ByteSizeValue indexingBufferSize;
     private final TranslogDeletionPolicyFactory translogDeletionPolicyFactory;
     private volatile boolean enableGcDeletes = true;
     private final TimeValue flushMergesAfter;
-    private final String codecName;
+    private String codecName;
     private final ThreadPool threadPool;
     private final Engine.Warmer warmer;
     private final Store store;
@@ -105,6 +110,7 @@ public final class EngineConfig {
     private final boolean isReadOnlyReplica;
     private final BooleanSupplier primaryModeSupplier;
     private final Comparator<LeafReader> leafSorter;
+    private Version clusterMinNodeVersion;
 
     /**
      * A supplier of the outstanding retention leases. This is used during merged operations to determine which operations that have been
@@ -249,6 +255,40 @@ public final class EngineConfig {
      */
     public Codec getCodec() {
         return codecService.codec(codecName);
+    }
+
+    public String getCodecName() {
+        return getCodec().getName();
+    }
+    public void setCodecName(String name) {
+        this.codecName = name;
+    }
+
+    /**
+     * Returns the BWC Codec{@link Codec} to be used in the engine during a rolling upgrade when
+     * cluster is in a mixed version state and segment replication is enabled {@link org.apache.lucene.index.IndexWriter}
+     */
+    public Codec getBWCCodec(String codecName) {
+        logger.info("Called bwcCodec for {}", codecName);
+        logger.info("returning {}", codecService.codec(codecName));
+        return codecService.codec(codecName);
+    }
+
+    /**
+     * Returns the minimum opensearch version among all nodes of a cluster when upgrade is in progress and
+     * segment replication is enabled.
+     */
+    public Version getClusterMinNodeVersion() {
+        logger.info("returning min version = {}", clusterMinNodeVersion);
+        return clusterMinNodeVersion;
+    }
+
+    /**
+     * Sets the minimum opensearch version among all nodes of a cluster when upgrade is in progress and
+     * segment replication is enabled.
+     */
+    public void setClusterMinNodeVersion(Version clusterMinNodeVersion) {
+        this.clusterMinNodeVersion = clusterMinNodeVersion;
     }
 
     /**
