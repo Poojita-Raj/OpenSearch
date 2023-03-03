@@ -326,6 +326,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     private final Store remoteStore;
     private final BiFunction<IndexSettings, ShardRouting, TranslogFactory> translogFactorySupplier;
+    private AtomicBoolean isUpgrading;
 
     public IndexShard(
         final ShardRouting shardRouting,
