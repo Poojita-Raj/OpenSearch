@@ -93,7 +93,7 @@ public class FeatureFlags {
 
     public static final Setting<Boolean> SEGMENT_REPLICATION_EXPERIMENTAL_SETTING = Setting.boolSetting(
         SEGMENT_REPLICATION_EXPERIMENTAL,
-        false,
+        true,
         Property.NodeScope
     );
 

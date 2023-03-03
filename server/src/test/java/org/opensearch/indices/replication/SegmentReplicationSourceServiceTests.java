@@ -133,7 +133,7 @@ public class SegmentReplicationSourceServiceTests extends OpenSearchTestCase {
     }
 
     private void executeGetCheckpointInfo(ActionListener<CheckpointInfoResponse> listener) {
-        final CheckpointInfoRequest request = new CheckpointInfoRequest(1L, "testAllocationId", localNode, testCheckpoint);
+        final CheckpointInfoRequest request = new CheckpointInfoRequest(1L, "testAllocationId", localNode, null, testCheckpoint);
         transportService.sendRequest(
             localNode,
             SegmentReplicationSourceService.Actions.GET_CHECKPOINT_INFO,

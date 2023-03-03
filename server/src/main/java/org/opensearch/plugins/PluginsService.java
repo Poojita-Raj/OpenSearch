@@ -387,17 +387,6 @@ public class PluginsService implements ReportingService<PluginsAndModules> {
      * Verify the given plugin is compatible with the current OpenSearch installation.
      */
     static void verifyCompatibility(PluginInfo info) {
-        if (info.getOpenSearchVersion().equals(Version.CURRENT) == false) {
-            throw new IllegalArgumentException(
-                "Plugin ["
-                    + info.getName()
-                    + "] was built for OpenSearch version "
-                    + info.getOpenSearchVersion()
-                    + " but version "
-                    + Version.CURRENT
-                    + " is running"
-            );
-        }
         JarHell.checkJavaVersion(info.getName(), info.getJavaVersion());
     }
 

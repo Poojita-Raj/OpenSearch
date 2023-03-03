@@ -8,6 +8,7 @@
 
 package org.opensearch.indices.replication;
 
+import org.opensearch.Version;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
@@ -26,29 +27,44 @@ import java.io.IOException;
 public class CheckpointInfoRequest extends SegmentReplicationTransportRequest {
 
     private final ReplicationCheckpoint checkpoint;
+    private final DiscoveryNode sourceNode;
 
     public CheckpointInfoRequest(StreamInput in) throws IOException {
         super(in);
         checkpoint = new ReplicationCheckpoint(in);
+        if(in.getVersion().onOrAfter(Version.V_2_7_0)) {
+            sourceNode = new DiscoveryNode(in);
+        } else {
+            sourceNode = null;
+        }
     }
 
     public CheckpointInfoRequest(
         long replicationId,
         String targetAllocationId,
         DiscoveryNode targetNode,
+        DiscoveryNode sourceNode,
         ReplicationCheckpoint checkpoint
     ) {
         super(replicationId, targetAllocationId, targetNode);
         this.checkpoint = checkpoint;
+        this.sourceNode = sourceNode;
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         checkpoint.writeTo(out);
+        if(out.getVersion().onOrAfter(Version.V_2_7_0)) {
+            sourceNode.writeTo(out);
+        }
     }
 
     public ReplicationCheckpoint getCheckpoint() {
         return checkpoint;
+    }
+
+    public DiscoveryNode getSourceNode() {
+        return sourceNode;
     }
 }

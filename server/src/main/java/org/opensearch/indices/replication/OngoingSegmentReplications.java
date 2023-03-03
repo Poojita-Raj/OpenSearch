@@ -149,10 +149,18 @@ class OngoingSegmentReplications {
     CopyState prepareForReplication(CheckpointInfoRequest request, FileChunkWriter fileChunkWriter) throws IOException {
         final CopyState copyState = getCachedCopyState(request.getCheckpoint());
         if (copyState.getCheckpoint().getCodec().equals(request.getCheckpoint().getCodec()) == false) {
-            logger.trace("Requested unsupported codec version {}", request.getCheckpoint().getCodec());
-            throw new CancellableThreads.ExecutionCancelledException(
-                new ParameterizedMessage("Requested unsupported codec version {}", request.getCheckpoint().getCodec()).toString()
-            );
+            DiscoveryNode sourceNode = request.getSourceNode();
+            DiscoveryNode targetNode = request.getTargetNode();
+            logger.info("source node is: {}, {}, {}, {}, {}", sourceNode.getId(), sourceNode.getName(), sourceNode.getAddress().getAddress(), sourceNode.getVersion(), sourceNode.getVersion().luceneVersion);
+            logger.info("target node is: {}, {}, {}, {}, {}", targetNode.getId(), targetNode.getName(), targetNode.getAddress().getAddress(), targetNode.getVersion(), targetNode.getVersion().luceneVersion );
+            //target of replication = replica
+            //if target version on or after pri version go ahead, else throw error
+            if (request.getTargetNode().getVersion().luceneVersion.onOrAfter(request.getSourceNode().getVersion().luceneVersion) == false) {
+                logger.trace("Requested unsupported codec version {}", request.getCheckpoint().getCodec());
+                throw new CancellableThreads.ExecutionCancelledException(
+                    new ParameterizedMessage("Requested unsupported codec version {}", request.getCheckpoint().getCodec()).toString()
+                );
+            }
         }
         allocationIdToHandlers.compute(request.getTargetAllocationId(), (allocationId, segrepHandler) -> {
             if (segrepHandler != null) {
