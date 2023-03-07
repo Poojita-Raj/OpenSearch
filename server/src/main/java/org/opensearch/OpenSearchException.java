@@ -76,7 +76,6 @@ import static org.opensearch.Version.V_2_1_0;
 import static org.opensearch.Version.V_2_3_0;
 import static org.opensearch.Version.V_2_4_0;
 import static org.opensearch.Version.V_2_5_0;
-import static org.opensearch.Version.V_2_6_0;
 import static org.opensearch.cluster.metadata.IndexMetadata.INDEX_UUID_NA_VALUE;
 import static org.opensearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
 import static org.opensearch.common.xcontent.XContentParserUtils.ensureFieldName;
@@ -1654,14 +1653,14 @@ public class OpenSearchException extends RuntimeException implements ToXContentF
             PreferenceBasedSearchNotAllowedException.class,
             PreferenceBasedSearchNotAllowedException::new,
             168,
-            V_2_6_0
+            V_2_5_0
         ),
-        NODE_WEIGHED_AWAY_EXCEPTION(NodeWeighedAwayException.class, NodeWeighedAwayException::new, 169, V_2_6_0),
+        NODE_WEIGHED_AWAY_EXCEPTION(NodeWeighedAwayException.class, NodeWeighedAwayException::new, 169, V_2_5_0),
         INDEX_CREATE_BLOCK_EXCEPTION(
             org.opensearch.cluster.block.IndexCreateBlockException.class,
             org.opensearch.cluster.block.IndexCreateBlockException::new,
             CUSTOM_ELASTICSEARCH_EXCEPTIONS_BASE_ID + 1,
-            V_2_6_0
+            V_2_5_0
         );
 
         final Class<? extends OpenSearchException> exceptionClass;

@@ -141,7 +141,7 @@ public class ClusterHealthRequest extends ClusterManagerNodeReadRequest<ClusterH
             out.writeOptionalString(awarenessAttribute);
             out.writeEnum(level);
         }
-        if (out.getVersion().onOrAfter(Version.V_2_6_0)) {
+        if (out.getVersion().onOrAfter(Version.V_2_5_0)) {
             out.writeBoolean(ensureNodeWeighedIn);
         }
     }
