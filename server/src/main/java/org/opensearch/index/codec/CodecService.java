@@ -82,7 +82,7 @@ public class CodecService {
     public void loadMap() {
         OpensearchVersionCodecs.put(Version.fromString("3.0.0"), "Lucene95");
         OpensearchVersionCodecs.put(Version.fromString("2.7.0"), "Lucene95");
-        OpensearchVersionCodecs.put(Version.fromString("2.6.0"), "Lucene95");
+        OpensearchVersionCodecs.put(Version.fromString("2.6.0"), "Lucene94");
         OpensearchVersionCodecs.put(Version.fromString("2.4.2"), "Lucene95");
         OpensearchVersionCodecs.put(Version.fromString("2.5.1"), "Lucene94");
         OpensearchVersionCodecs.put(Version.fromString("2.5.0"), "Lucene94");

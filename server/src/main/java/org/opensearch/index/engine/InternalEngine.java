@@ -2488,6 +2488,7 @@ public class InternalEngine extends Engine {
         //get diff codec - get bwc codec
         //flag to mention that rolling upgrade is done - set by polling (IndexService will know)
         //create a method on IndexShard - tells us upgrade is done so engineConfig codec to latest one
+        System.out.println(engineConfig.getLoadOpensearchCodecVersion() + "\n\n");
         if (engineConfig.getLoadOpensearchCodecVersion() != null) {
             iwc.setCodec(engineConfig.getBWCCodec(CodecService.OpensearchVersionCodecs.get(engineConfig.getLoadOpensearchCodecVersion()))); //min version that we track somewhere)
         } else {
