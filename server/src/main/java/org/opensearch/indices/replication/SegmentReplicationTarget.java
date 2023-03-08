@@ -12,6 +12,7 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexFormatTooNewException;
 import org.apache.lucene.index.IndexFormatTooOldException;
+import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.store.BufferedChecksumIndexInput;
 import org.apache.lucene.store.ByteBuffersDataInput;
@@ -219,6 +220,9 @@ public class SegmentReplicationTarget extends ReplicationTarget {
                     toIndexInput(checkpointInfoResponse.getInfosBytes()),
                     responseCheckpoint.getSegmentsGen()
                 );
+                for (final SegmentCommitInfo info : infos) {
+                    logger.info("Codec {}", info.info.getCodec().getName());
+                }
                 cancellableThreads.checkForCancel();
                 indexShard.finalizeReplication(infos, responseCheckpoint.getSeqNo());
                 store.cleanupAndPreserveLatestCommitPoint("finalize - clean with in memory infos", infos);
