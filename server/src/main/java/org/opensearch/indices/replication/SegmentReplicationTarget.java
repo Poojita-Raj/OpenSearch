@@ -220,7 +220,7 @@ public class SegmentReplicationTarget extends ReplicationTarget {
                     toIndexInput(checkpointInfoResponse.getInfosBytes()),
                     responseCheckpoint.getSegmentsGen()
                 );
-                for (final SegmentCommitInfo info : segmentInfos) {
+                for (final SegmentCommitInfo info : infos) {
                     logger.info("Codec {}", info.info.getCodec().getName());
                 }
                 cancellableThreads.checkForCancel();
