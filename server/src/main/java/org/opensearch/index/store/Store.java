@@ -1112,6 +1112,8 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
             Map<String, StoreFileMetadata> builder = new HashMap<>();
             // we don't know which version was used to write so we take the max version.
             Version maxVersion = segmentInfos.getMinSegmentLuceneVersion();
+            logger.info("getMinSegLucVer = " + maxVersion.toString());
+            logger.info("getCommitLucVer = " + segmentInfos.getCommitLuceneVersion().toString());
             for (SegmentCommitInfo info : segmentInfos) {
                 final Version version = info.info.getVersion();
                 if (version == null) {

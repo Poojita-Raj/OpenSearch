@@ -8,7 +8,10 @@
 
 package org.opensearch.indices.replication.common;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.store.ByteBuffersDataOutput;
 import org.apache.lucene.store.ByteBuffersIndexOutput;
@@ -30,6 +33,8 @@ import java.util.Map;
  * @opensearch.internal
  */
 public class CopyState extends AbstractRefCounted {
+
+    private static final Logger logger = LogManager.getLogger(CopyState.class);
 
     private final GatedCloseable<SegmentInfos> segmentInfosRef;
     /** ReplicationCheckpoint requested */
@@ -59,6 +64,9 @@ public class CopyState extends AbstractRefCounted {
             segmentInfos.write(indexOutput);
         }
         this.infosBytes = buffer.toArrayCopy();
+        for (final SegmentCommitInfo info : segmentInfos) {
+            logger.info("Codec {}", info.info.getCodec().getName());
+        }
     }
 
     @Override

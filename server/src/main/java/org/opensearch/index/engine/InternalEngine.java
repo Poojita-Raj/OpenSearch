@@ -2428,7 +2428,10 @@ public class InternalEngine extends Engine {
         if (Assertions.ENABLED) {
             return new AssertingIndexWriter(directory, iwc);
         } else {
-            return new IndexWriter(directory, iwc);
+            IndexWriter iw = new IndexWriter(directory, iwc);
+            logger.info("iw config codec:" + iw.getConfig().getCodec().getName());
+            logger.info("iw config getIndexCreatedVersionMajor" + iw.getConfig().getIndexCreatedVersionMajor());
+            return iw;
         }
     }
 
