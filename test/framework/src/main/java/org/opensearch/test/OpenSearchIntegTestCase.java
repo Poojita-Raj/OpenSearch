@@ -2074,7 +2074,8 @@ public abstract class OpenSearchIntegTestCase extends OpenSearchTestCase {
      * Returns {@code true} if this test cluster can use a mock internal engine. Defaults to true.
      */
     protected boolean addMockInternalEngine() {
-        return true;
+        //return true;
+        return false;
     }
 
     /** Returns {@code true} iff this test cluster should use a dummy geo_shape field mapper */

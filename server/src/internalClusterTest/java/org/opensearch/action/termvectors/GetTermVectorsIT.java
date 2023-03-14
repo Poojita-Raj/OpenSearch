@@ -583,6 +583,7 @@ public class GetTermVectorsIT extends AbstractTermVectorsTestCase {
             }
             compareTermVectors("field1", fields[0], fields[1]);
         }
+        logger.info("DONE");
     }
 
     private void compareTermVectors(String fieldName, Fields fields0, Fields fields1) throws IOException {

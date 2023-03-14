@@ -26,7 +26,8 @@ public enum ReplicationType {
             throw new IllegalArgumentException("Could not parse ReplicationStrategy for [" + replicationType + "]");
         } catch (NullPointerException npe) {
             // return a default value for null input
-            return DOCUMENT;
+            //return DOCUMENT;
+            return SEGMENT;
         }
     }
 }

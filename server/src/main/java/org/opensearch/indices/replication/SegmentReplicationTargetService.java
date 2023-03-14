@@ -190,7 +190,7 @@ public class SegmentReplicationTargetService implements IndexEventListener {
      * @param replicaShard       replica shard on which checkpoint is received
      */
     public synchronized void onNewCheckpoint(final ReplicationCheckpoint receivedCheckpoint, final IndexShard replicaShard) {
-        logger.trace(() -> new ParameterizedMessage("Replica received new replication checkpoint from primary [{}]", receivedCheckpoint));
+        logger.info(() -> new ParameterizedMessage("Replica received new replication checkpoint from primary [{}]", receivedCheckpoint));
         // Checks if replica shard is in the correct STARTED state to process checkpoints (avoids parallel replication events taking place)
         if (replicaShard.state().equals(IndexShardState.STARTED) == true) {
             // Checks if received checkpoint is already present and ahead then it replaces old received checkpoint
@@ -225,7 +225,7 @@ public class SegmentReplicationTargetService implements IndexEventListener {
                 startReplication(receivedCheckpoint, replicaShard, new SegmentReplicationListener() {
                     @Override
                     public void onReplicationDone(SegmentReplicationState state) {
-                        logger.trace(
+                        logger.info(
                             () -> new ParameterizedMessage(
                                 "[shardId {}] [replication id {}] Replication complete, timing data: {}",
                                 replicaShard.shardId().getId(),
