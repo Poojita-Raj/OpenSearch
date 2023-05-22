@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.BaseExceptionsHelper;
+import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.common.Nullable;
@@ -227,7 +228,20 @@ public class SegmentReplicationTargetService implements IndexEventListener {
                 }
             }
             final Thread thread = Thread.currentThread();
-            if (replicaShard.shouldProcessCheckpoint(receivedCheckpoint)) {
+            Version localNodeVersion = indicesService.clusterService().state().nodes().getLocalNode().getVersion();
+            // if replica's OS version is not on or after primary version, then can ignore checkpoint
+            if (localNodeVersion.onOrAfter(receivedCheckpoint.getMinVersion()) == false) {
+                logger.trace(
+                    () -> new ParameterizedMessage(
+                        "Ignoring checkpoint, shard not started {} {}\n Shard does not support the received lucene codec version {}",
+                        receivedCheckpoint,
+                        replicaShard.state(),
+                        receivedCheckpoint.getCodec()
+                    )
+                );
+                return;
+            }
+            if (replicaShard.shouldProcessCheckpoint(receivedCheckpoint, localNodeVersion)) {
                 startReplication(receivedCheckpoint, replicaShard, new SegmentReplicationListener() {
                     @Override
                     public void onReplicationDone(SegmentReplicationState state) {
@@ -447,7 +461,7 @@ public class SegmentReplicationTargetService implements IndexEventListener {
                         try {
                             // Promote engine type for primary target
                             if (indexShard.recoveryState().getPrimary() == true) {
-                                indexShard.resetToWriteableEngine();
+                                indexShard.resetEngine();
                             }
                             channel.sendResponse(TransportResponse.Empty.INSTANCE);
                         } catch (InterruptedException | TimeoutException | IOException e) {
