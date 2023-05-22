@@ -33,9 +33,9 @@
 package org.opensearch.index.codec;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.backward_codecs.lucene94.Lucene94Codec;
+import org.apache.lucene.backward_codecs.lucene94.Lucene94Codec.Mode;
 import org.apache.lucene.codecs.Codec;
-import org.apache.lucene.codecs.lucene95.Lucene95Codec;
-import org.apache.lucene.codecs.lucene95.Lucene95Codec.Mode;
 import org.opensearch.Version;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.MapBuilder;
@@ -66,13 +66,13 @@ public class CodecService {
         loadMap();
         final MapBuilder<String, Codec> codecs = MapBuilder.<String, Codec>newMapBuilder();
         if (mapperService == null) {
-            codecs.put(DEFAULT_CODEC, new Lucene95Codec());
-            codecs.put(BEST_COMPRESSION_CODEC, new Lucene95Codec(Mode.BEST_COMPRESSION));
+            codecs.put(DEFAULT_CODEC, new Lucene94Codec());
+            codecs.put(BEST_COMPRESSION_CODEC, new Lucene94Codec(Mode.BEST_COMPRESSION));
         } else {
             codecs.put(DEFAULT_CODEC, new PerFieldMappingPostingFormatCodec(Mode.BEST_SPEED, mapperService, logger));
             codecs.put(BEST_COMPRESSION_CODEC, new PerFieldMappingPostingFormatCodec(Mode.BEST_COMPRESSION, mapperService, logger));
         }
-        codecs.put(LUCENE_DEFAULT_CODEC, Codec.getDefault());
+        codecs.put(LUCENE_DEFAULT_CODEC, Codec.forName("Lucene94"));
         for (String codec : Codec.availableCodecs()) {
             codecs.put(codec, Codec.forName(codec));
         }

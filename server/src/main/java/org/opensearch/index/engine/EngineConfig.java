@@ -257,7 +257,10 @@ public final class EngineConfig {
     }
 
     public String getCodecName() {
-        return getCodec().getName();
+        if (codecName.equals("default") == false) {
+            return codecService.codec(codecName).getName();
+        }
+        return "Lucene94";
     }
 
     public void setCodecName(String name) {
