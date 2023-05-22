@@ -1553,7 +1553,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         shardRouting.primary()
                             ? store.getSegmentMetadataMap(segmentInfos).values().stream().mapToLong(StoreFileMetadata::length).sum()
                             : store.stats(StoreStats.UNKNOWN_RESERVED_BYTES).getSizeInBytes(),
-                        getEngine().config().getCodec().getName()
+                        getEngine().config().getCodecName(),
+                        getEngine().config().getClusterMinVersion()
                     )
                 );
             } catch (IOException e) {
@@ -1787,7 +1788,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     /**
-     * Used with segment replication during relocation handoff, this method updates current read only engine to global
+     * Used with segment replication during relocation handoff and rolling upgrades, this method updates current read only engine to global
      * checkpoint followed by changing to writeable engine
      *
      * @throws IOException if communication failed
@@ -1796,7 +1797,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      *
      * @opensearch.internal
      */
-    public void resetToWriteableEngine() throws IOException, InterruptedException, TimeoutException {
+    public void resetEngine() throws IOException, InterruptedException, TimeoutException {
         indexShardOperationPermits.blockOperations(30, TimeUnit.MINUTES, () -> { resetEngineToGlobalCheckpoint(); });
     }
 
@@ -3277,7 +3278,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         recoveryState.getVerifyIndex().checkIndexTime(Math.max(0, TimeValue.nsecToMSec(System.nanoTime() - timeNS)));
     }
 
-    Engine getEngine() {
+    public Engine getEngine() {
         Engine engine = getEngineOrNull();
         if (engine == null) {
             throw new AlreadyClosedException("engine is closed");
