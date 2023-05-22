@@ -854,7 +854,7 @@ public class IndicesService extends AbstractLifecycleComponent
                 return config -> new ReadOnlyEngine(config, new SeqNoStats(0, 0, 0), new TranslogStats(), true, Function.identity(), false);
             }
             if (idxSettings.isSegRepEnabled()) {
-                return new NRTReplicationEngineFactory();
+                return new NRTReplicationEngineFactory(clusterService);
             }
             return new InternalEngineFactory();
         } else if (engineFactories.size() == 1) {
