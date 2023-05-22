@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.BaseExceptionsHelper;
+import org.opensearch.Version;
 import org.opensearch.action.ActionListener;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.common.Nullable;
@@ -227,7 +228,8 @@ public class SegmentReplicationTargetService implements IndexEventListener {
                 }
             }
             final Thread thread = Thread.currentThread();
-            if (replicaShard.shouldProcessCheckpoint(receivedCheckpoint)) {
+            Version localNodeVersion = indicesService.clusterService().state().nodes().getLocalNode().getVersion();
+            if (replicaShard.shouldProcessCheckpoint(receivedCheckpoint, localNodeVersion)) {
                 startReplication(receivedCheckpoint, replicaShard, new SegmentReplicationListener() {
                     @Override
                     public void onReplicationDone(SegmentReplicationState state) {
