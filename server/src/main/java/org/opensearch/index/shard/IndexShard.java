@@ -1630,8 +1630,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             );
             return false;
         }
-        // if replica's OS version is on or after pri version, then can process checkpoint
-        if (localNodeVersion.onOrAfter(requestCheckpoint.getBwcVersion()) == false) {
+        // if replica's OS version is on or after primary version, then can process checkpoint
+        if (localNodeVersion.onOrAfter(requestCheckpoint.getMinVersion()) == false) {
             logger.trace(
                 () -> new ParameterizedMessage("Shard does not support the received lucene codec version {}", requestCheckpoint.getCodec())
             );

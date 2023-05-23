@@ -32,7 +32,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
     private final long segmentInfosVersion;
     private final long length;
     private final String codec;
-    private final Version bwcVersion;
+    private final Version minVersion;
 
     public static ReplicationCheckpoint empty(ShardId shardId, String codec) {
         return new ReplicationCheckpoint(shardId, codec);
@@ -45,7 +45,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
         segmentInfosVersion = SequenceNumbers.NO_OPS_PERFORMED;
         length = 0L;
         this.codec = codec;
-        bwcVersion = Version.CURRENT;
+        minVersion = Version.CURRENT;
     }
 
     public ReplicationCheckpoint(ShardId shardId, long primaryTerm, long segmentsGen, long segmentInfosVersion, String codec) {
@@ -67,7 +67,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
         this.segmentInfosVersion = segmentInfosVersion;
         this.length = length;
         this.codec = codec;
-        this.bwcVersion = bwcVersion;
+        this.minVersion = bwcVersion;
     }
 
     public ReplicationCheckpoint(StreamInput in) throws IOException {
@@ -83,9 +83,9 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
             codec = null;
         }
         if (in.getVersion().onOrAfter(Version.V_2_8_0)) {
-            bwcVersion = in.readVersion();
+            minVersion = in.readVersion();
         } else {
-            bwcVersion = Version.CURRENT;
+            minVersion = Version.CURRENT;
         }
     }
 
@@ -138,10 +138,10 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
     }
 
     /**
-     * gets bwc os version cluster is on
+     * Returns the minimum opensearch version cluster is on
      */
-    public Version getBwcVersion() {
-        return bwcVersion;
+    public Version getMinVersion() {
+        return minVersion;
     }
 
     @Override
@@ -155,7 +155,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
             out.writeString(codec);
         }
         if (out.getVersion().onOrAfter(Version.V_2_8_0)) {
-            out.writeVersion(bwcVersion);
+            out.writeVersion(minVersion);
         }
     }
 
@@ -174,7 +174,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
             && segmentInfosVersion == that.segmentInfosVersion
             && Objects.equals(shardId, that.shardId)
             && codec.equals(that.codec)
-            && bwcVersion.equals(that.bwcVersion);
+            && minVersion.equals(that.minVersion);
     }
 
     @Override
@@ -207,8 +207,8 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
             + length
             + ", codec="
             + codec
-            + ", bwc version="
-            + bwcVersion
+            + ", min version="
+            + minVersion
             + '}';
     }
 }
