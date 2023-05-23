@@ -31,8 +31,6 @@
 
 package org.opensearch.index.engine;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.index.LeafReader;
@@ -78,7 +76,6 @@ import java.util.function.Supplier;
  * @opensearch.internal
  */
 public final class EngineConfig {
-    private static final Logger logger = LogManager.getLogger(EngineConfig.class);
     private final ShardId shardId;
     private final IndexSettings indexSettings;
     private final ByteSizeValue indexingBufferSize;
@@ -279,7 +276,6 @@ public final class EngineConfig {
      * segment replication is enabled; null when upgrade not in progress.
      */
     public Version getClusterMinVersion() {
-        logger.info("returning min version = {}", clusterMinVersion);
         return clusterMinVersion;
     }
 
@@ -288,7 +284,6 @@ public final class EngineConfig {
      * segment replication is enabled.
      */
     public void setClusterMinVersion(Version clusterMinVersion) {
-        logger.info("setting bwc version min = {} : {}", clusterMinVersion, clusterMinVersion.luceneVersion);
         this.clusterMinVersion = clusterMinVersion;
     }
 
@@ -297,8 +292,6 @@ public final class EngineConfig {
      * cluster is in a mixed version state and segment replication is enabled {@link org.apache.lucene.index.IndexWriter}
      */
     public Codec getBWCCodec(String codecName) {
-        logger.info("Called bwcCodec for {}", codecName);
-        logger.info("returning {}", codecService.codec(codecName));
         return codecService.codec(codecName);
     }
 

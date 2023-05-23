@@ -21,11 +21,9 @@ import org.opensearch.cluster.service.ClusterService;
  */
 public class NRTReplicationEngineFactory implements EngineFactory {
 
-    private static final Logger logger = LogManager.getLogger(NRTReplicationEngineFactory.class);
     private final ClusterService clusterService;
 
     public NRTReplicationEngineFactory(ClusterService clusterService) {
-        logger.info("nrt factory created\n");
         this.clusterService = clusterService;
     }
 
@@ -35,18 +33,12 @@ public class NRTReplicationEngineFactory implements EngineFactory {
 
     @Override
     public Engine newReadWriteEngine(EngineConfig config) {
-        logger.info("new read write engine entered\n");
         if (config.isReadOnlyReplica()) {
-            logger.info("config: is read only replica\n");
             return new NRTReplicationEngine(config);
         }
         if (clusterService != null) {
             DiscoveryNodes nodes = this.clusterService.state().nodes();
-            logger.info("min and max node version = {}, {}", nodes.getMinNodeVersion(), nodes.getMaxNodeVersion());
-            //if (nodes.getMinNodeVersion() != nodes.getMaxNodeVersion()) {
-                logger.info("min and max node version don't match, min version = {}", nodes.getMinNodeVersion());
-                config.setClusterMinVersion(nodes.getMinNodeVersion());
-            //}
+            config.setClusterMinVersion(nodes.getMinNodeVersion());
         }
         return new InternalEngine(config);
     }

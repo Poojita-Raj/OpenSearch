@@ -10,6 +10,7 @@ package org.opensearch.indices.replication;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterStateListener;
 import org.opensearch.cluster.node.DiscoveryNodes;
@@ -27,35 +28,34 @@ public class SegmentReplicationUpgradeListener implements ClusterStateListener {
     private final IndicesService indicesService;
 
     public SegmentReplicationUpgradeListener(IndicesService indicesService) {
-        logger.info("SEGREP ROLLING UPGRADE LISTENER REGISTERED!\n\n");
         this.indicesService = indicesService;
     }
 
     @Override
     public void clusterChanged(ClusterChangedEvent event) {
-        logger.info("rolling upgrade listener called on clusterChangedEvent\n\n\n");
         List<IndexShard> indexShardList = new ArrayList<>();
         DiscoveryNodes nodes = event.state().nodes();
         if (nodes.getMinNodeVersion().equals(nodes.getMaxNodeVersion())) {
-            logger.info("cluster all nodes version are equal\n");
-            for (IndexService sh : indicesService.indices().values()) {
-                for (IndexShard is : sh) {
-                    if ((is.getEngine().config().isReadOnlyReplica() == false) && (is.getEngine().config().getClusterMinVersion() != null)) {
-                        indexShardList.add(is);
-                        logger.info("added index shard to update iw: {}", is.toString());
+            for (IndexService indexService : indicesService.indices().values()) {
+                for (IndexShard indexShard : indexService) {
+                    try {
+                        if ((indexShard.getEngine().config().isReadOnlyReplica() == false) && (indexShard.getEngine().config().getClusterMinVersion() != nodes.getMaxNodeVersion())) {
+                            indexShardList.add(indexShard);
+                        }
+                    } catch (AlreadyClosedException e) {
+                        logger.warn("Index shard [{}] engine is already closed.", indexShard.shardId());
                     }
                 }
             }
         }
         try {
-            if (indexShardList.size() > 0) {
+            if (indexShardList.isEmpty() == false) {
                 for (IndexShard is : indexShardList) {
                     is.resetEngineToGlobalCheckpoint();
                 }
             }
         } catch (Exception e) {
-            logger.info("got error here: {} {}", e.toString(), e.getMessage());
-            e.printStackTrace();
+            logger.error("Received unexpected exception: [{}]", e.getMessage());
         }
 
     }

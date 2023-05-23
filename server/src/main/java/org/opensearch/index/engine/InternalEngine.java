@@ -2320,7 +2320,6 @@ public class InternalEngine extends Engine {
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
         Codec bwcCodec = engineConfig.getBWCCodec(CodecService.opensearchVersionToLuceneCodec.get(engineConfig.getClusterMinVersion()));
-        logger.info("setting bwc codec to {}", bwcCodec.getName());
         iwc.setCodec(bwcCodec);
         engineConfig.setCodecName(bwcCodec.getName());
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh

@@ -1553,7 +1553,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             ? store.getSegmentMetadataMap(segmentInfos).values().stream().mapToLong(StoreFileMetadata::length).sum()
                             : store.stats(StoreStats.UNKNOWN_RESERVED_BYTES).getSizeInBytes(),
                         getEngine().config().getCodecName(),
-                        getEngine().config().getClusterMinVersion() == null ? Version.CURRENT : getEngine().config().getClusterMinVersion()
+                        getEngine().config().getClusterMinVersion()
                     )
                 );
             } catch (IOException e) {
@@ -1631,10 +1631,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             return false;
         }
         // if replica's OS version is on or after pri version, then can process checkpoint
-        // if bwcVersion is null, cluster is not in mixed cluster state so we can process checkpoint
-        logger.info("req chkpt = {}", requestCheckpoint);
-        logger.info("req chkpt bwc version = {}", requestCheckpoint.getBwcVersion());
-        logger.info("local node version = {}", localNodeVersion);
         if (localNodeVersion.onOrAfter(requestCheckpoint.getBwcVersion()) == false) {
             logger.trace(
                 () -> new ParameterizedMessage("Shard does not support the received lucene codec version {}", requestCheckpoint.getCodec())
