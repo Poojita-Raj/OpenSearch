@@ -40,9 +40,7 @@ public class SegmentReplicationUpgradeListener implements ClusterStateListener {
             logger.info("cluster all nodes version are equal\n");
             for (IndexService sh : indicesService.indices().values()) {
                 for (IndexShard is : sh) {
-                    if (is.getEngine().config().getClusterBwcVersion() != null) {
-                        // close indexservice
-                        // reopen index writer
+                    if ((is.getEngine().config().isReadOnlyReplica() == false) && (is.getEngine().config().getClusterMinVersion() != null)) {
                         indexShardList.add(is);
                         logger.info("added index shard to update iw: {}", is.toString());
                     }

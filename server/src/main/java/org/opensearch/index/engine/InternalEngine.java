@@ -2319,16 +2319,10 @@ public class InternalEngine extends Engine {
         iwc.setMergePolicy(new OpenSearchMergePolicy(mergePolicy));
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
-        if (engineConfig.getClusterBwcVersion() != null) {
-            Codec bwcCodec = engineConfig.getBWCCodec(CodecService.opensearchVersionToLuceneCodec.get(engineConfig.getClusterBwcVersion()));
-            logger.info("setting bwc codec to {}", bwcCodec.getName());
-            iwc.setCodec(bwcCodec);
-            engineConfig.setCodecName(bwcCodec.getName());
-        } else {
-            logger.info("setting regular codec to {}", engineConfig.getCodec().getName());
-            iwc.setCodec(engineConfig.getCodec());
-            engineConfig.setCodecName(engineConfig.getCodec().getName());
-        }
+        Codec bwcCodec = engineConfig.getBWCCodec(CodecService.opensearchVersionToLuceneCodec.get(engineConfig.getClusterMinVersion()));
+        logger.info("setting bwc codec to {}", bwcCodec.getName());
+        iwc.setCodec(bwcCodec);
+        engineConfig.setCodecName(bwcCodec.getName());
         iwc.setUseCompoundFile(true); // always use compound on flush - reduces # of file-handles on refresh
         if (config().getIndexSort() != null) {
             iwc.setIndexSort(config().getIndexSort());

@@ -109,7 +109,7 @@ public final class EngineConfig {
     private final boolean isReadOnlyReplica;
     private final BooleanSupplier primaryModeSupplier;
     private final Comparator<LeafReader> leafSorter;
-    private Version clusterBwcVersion;
+    private Version clusterMinVersion;
 
     /**
      * A supplier of the outstanding retention leases. This is used during merged operations to determine which operations that have been
@@ -182,6 +182,7 @@ public final class EngineConfig {
         this.codecService = builder.codecService;
         this.eventListener = builder.eventListener;
         this.codecName = builder.indexSettings.getValue(INDEX_CODEC_SETTING);
+        this.clusterMinVersion = Version.CURRENT;
         // We need to make the indexing buffer for this shard at least as large
         // as the amount of memory that is available for all engines on the
         // local node so that decisions to flush segments to disk are made by
@@ -256,6 +257,9 @@ public final class EngineConfig {
         return codecService.codec(codecName);
     }
 
+    /**
+     * Returns the codec name of the lucene codec used for writing new segments
+     */
     public String getCodecName() {
         if (codecName.equals("default") == false) {
             return codecService.codec(codecName).getName();
@@ -263,26 +267,29 @@ public final class EngineConfig {
         return "Lucene94";
     }
 
+    /**
+     * Sets the codec name of the lucene codec used for writing new segments
+     */
     public void setCodecName(String name) {
         this.codecName = name;
     }
 
     /**
      * Returns the minimum opensearch version among all nodes of a cluster when upgrade is in progress and
-     * segment replication is enabled.
+     * segment replication is enabled; null when upgrade not in progress.
      */
-    public Version getClusterBwcVersion() {
-        logger.info("returning min version = {}", clusterBwcVersion);
-        return clusterBwcVersion;
+    public Version getClusterMinVersion() {
+        logger.info("returning min version = {}", clusterMinVersion);
+        return clusterMinVersion;
     }
 
     /**
      * Sets the minimum opensearch version among all nodes of a cluster when upgrade is in progress and
      * segment replication is enabled.
      */
-    public void setClusterBwcVersion(Version clusterBwcVersion) {
-        logger.info("setting bwc version min = {} : {}", clusterBwcVersion, clusterBwcVersion.luceneVersion);
-        this.clusterBwcVersion = clusterBwcVersion;
+    public void setClusterMinVersion(Version clusterMinVersion) {
+        logger.info("setting bwc version min = {} : {}", clusterMinVersion, clusterMinVersion.luceneVersion);
+        this.clusterMinVersion = clusterMinVersion;
     }
 
     /**

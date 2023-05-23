@@ -147,12 +147,6 @@ class OngoingSegmentReplications {
      */
     CopyState prepareForReplication(CheckpointInfoRequest request, FileChunkWriter fileChunkWriter) throws IOException {
         final CopyState copyState = getCachedCopyState(request.getCheckpoint());
-        /*if (copyState.getCheckpoint().getCodec().equals(request.getCheckpoint().getCodec()) == false) {
-            logger.trace("Requested unsupported codec version {}", request.getCheckpoint().getCodec());
-            throw new CancellableThreads.ExecutionCancelledException(
-                new ParameterizedMessage("Requested unsupported codec version {}", request.getCheckpoint().getCodec()).toString()
-            );
-        }*/
         allocationIdToHandlers.compute(request.getTargetAllocationId(), (allocationId, segrepHandler) -> {
             if (segrepHandler != null) {
                 logger.warn("Override handler for allocation id {}", request.getTargetAllocationId());

@@ -43,10 +43,10 @@ public class NRTReplicationEngineFactory implements EngineFactory {
         if (clusterService != null) {
             DiscoveryNodes nodes = this.clusterService.state().nodes();
             logger.info("min and max node version = {}, {}", nodes.getMinNodeVersion(), nodes.getMaxNodeVersion());
-            if (nodes.getMinNodeVersion() != nodes.getMaxNodeVersion()) {
+            //if (nodes.getMinNodeVersion() != nodes.getMaxNodeVersion()) {
                 logger.info("min and max node version don't match, min version = {}", nodes.getMinNodeVersion());
-                config.setClusterBwcVersion(nodes.getMinNodeVersion());
-            }
+                config.setClusterMinVersion(nodes.getMinNodeVersion());
+            //}
         }
         return new InternalEngine(config);
     }

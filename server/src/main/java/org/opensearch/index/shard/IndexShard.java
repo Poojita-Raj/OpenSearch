@@ -1553,7 +1553,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             ? store.getSegmentMetadataMap(segmentInfos).values().stream().mapToLong(StoreFileMetadata::length).sum()
                             : store.stats(StoreStats.UNKNOWN_RESERVED_BYTES).getSizeInBytes(),
                         getEngine().config().getCodecName(),
-                        getEngine().config().getClusterBwcVersion() == null ? Version.CURRENT : getEngine().config().getClusterBwcVersion()
+                        getEngine().config().getClusterMinVersion() == null ? Version.CURRENT : getEngine().config().getClusterMinVersion()
                     )
                 );
             } catch (IOException e) {
