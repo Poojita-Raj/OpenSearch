@@ -33,7 +33,6 @@
 package org.opensearch.cluster.routing.allocation;
 
 import org.opensearch.OpenSearchParseException;
-import org.opensearch.Version;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
@@ -118,7 +117,7 @@ public class DiskThresholdSettings {
     private volatile ByteSizeValue freeBytesThresholdFloodStage;
 
     static {
-        //assert Version.CURRENT.major == Version.V_2_0_0.major + 1; // this check is unnecessary in v4
+        // assert Version.CURRENT.major == Version.V_2_0_0.major + 1; // this check is unnecessary in v4
         final String AUTO_RELEASE_INDEX_ENABLED_KEY = "opensearch.disk.auto_release_flood_stage_block";
 
         final String property = System.getProperty(AUTO_RELEASE_INDEX_ENABLED_KEY);

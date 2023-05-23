@@ -507,7 +507,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * Returns the name of the default codec in codecService
      */
     public String getDefaultCodecName() {
-        //return codecService.codec(CodecService.DEFAULT_CODEC).getName();
+        // return codecService.codec(CodecService.DEFAULT_CODEC).getName();
         return "Lucene94";
     }
 
@@ -1553,7 +1553,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                             ? store.getSegmentMetadataMap(segmentInfos).values().stream().mapToLong(StoreFileMetadata::length).sum()
                             : store.stats(StoreStats.UNKNOWN_RESERVED_BYTES).getSizeInBytes(),
                         getEngine().config().getCodecName(),
-                        getEngine().config().getClusterBwcVersion()
+                        getEngine().config().getClusterBwcVersion() == null ? Version.CURRENT : getEngine().config().getClusterBwcVersion()
                     )
                 );
             } catch (IOException e) {
@@ -1632,7 +1632,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         }
         // if replica's OS version is on or after pri version, then can process checkpoint
         // if bwcVersion is null, cluster is not in mixed cluster state so we can process checkpoint
-        if ((requestCheckpoint.getBwcVersion() != null) && (localNodeVersion.onOrAfter(requestCheckpoint.getBwcVersion()))) {
+        logger.info("req chkpt = {}", requestCheckpoint);
+        logger.info("req chkpt bwc version = {}", requestCheckpoint.getBwcVersion());
+        logger.info("local node version = {}", localNodeVersion);
+        if (localNodeVersion.onOrAfter(requestCheckpoint.getBwcVersion()) == false) {
             logger.trace(
                 () -> new ParameterizedMessage("Shard does not support the received lucene codec version {}", requestCheckpoint.getCodec())
             );

@@ -45,11 +45,11 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
         segmentInfosVersion = SequenceNumbers.NO_OPS_PERFORMED;
         length = 0L;
         this.codec = codec;
-        bwcVersion = null;
+        bwcVersion = Version.CURRENT;
     }
 
     public ReplicationCheckpoint(ShardId shardId, long primaryTerm, long segmentsGen, long segmentInfosVersion, String codec) {
-        this(shardId, primaryTerm, segmentsGen, segmentInfosVersion, 0L, codec, null);
+        this(shardId, primaryTerm, segmentsGen, segmentInfosVersion, 0L, codec, Version.CURRENT);
     }
 
     public ReplicationCheckpoint(
@@ -85,7 +85,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
         if (in.getVersion().onOrAfter(Version.V_2_8_0)) {
             bwcVersion = in.readVersion();
         } else {
-            bwcVersion = null;
+            bwcVersion = Version.CURRENT;
         }
     }
 
