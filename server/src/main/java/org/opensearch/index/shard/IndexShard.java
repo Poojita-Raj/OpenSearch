@@ -1630,13 +1630,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             );
             return false;
         }
-        // if replica's OS version is on or after primary version, then can process checkpoint
-        if (localNodeVersion.onOrAfter(requestCheckpoint.getMinVersion()) == false) {
-            logger.trace(
-                () -> new ParameterizedMessage("Shard does not support the received lucene codec version {}", requestCheckpoint.getCodec())
-            );
-            return false;
-        }
         return true;
     }
 
@@ -1795,7 +1788,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     /**
-     * Used with segment replication during relocation handoff, this method updates current read only engine to global
+     * Used with segment replication during relocation handoff and rolling upgrades, this method updates current read only engine to global
      * checkpoint followed by changing to writeable engine
      *
      * @throws IOException if communication failed
@@ -1804,7 +1797,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      *
      * @opensearch.internal
      */
-    public void resetToWriteableEngine() throws IOException, InterruptedException, TimeoutException {
+    public void resetEngine() throws IOException, InterruptedException, TimeoutException {
         indexShardOperationPermits.blockOperations(30, TimeUnit.MINUTES, () -> { resetEngineToGlobalCheckpoint(); });
     }
 

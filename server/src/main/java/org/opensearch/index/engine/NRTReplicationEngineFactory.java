@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.index.codec.CodecService;
 
 /**
  * Engine Factory implementation used with Segment Replication that wires up replica shards with an ${@link NRTReplicationEngine}
@@ -27,10 +28,6 @@ public class NRTReplicationEngineFactory implements EngineFactory {
         this.clusterService = clusterService;
     }
 
-    public NRTReplicationEngineFactory() {
-        this.clusterService = null;
-    }
-
     @Override
     public Engine newReadWriteEngine(EngineConfig config) {
         if (config.isReadOnlyReplica()) {
@@ -39,6 +36,7 @@ public class NRTReplicationEngineFactory implements EngineFactory {
         if (clusterService != null) {
             DiscoveryNodes nodes = this.clusterService.state().nodes();
             config.setClusterMinVersion(nodes.getMinNodeVersion());
+            config.setCodecName(config.getBWCCodec(CodecService.opensearchVersionToLuceneCodec.get(nodes.getMinNodeVersion())).getName());
         }
         return new InternalEngine(config);
     }

@@ -102,14 +102,14 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
      * Test that latestReplicationCheckpoint returns ReplicationCheckpoint for segrep enabled indices
      */
     public void testReplicationCheckpointNotNullForSegRep() throws IOException {
-        final IndexShard indexShard = newStartedShard(randomBoolean(), settings, new NRTReplicationEngineFactory());
+        final IndexShard indexShard = newStartedShard(randomBoolean(), settings, new NRTReplicationEngineFactory(null));
         final ReplicationCheckpoint replicationCheckpoint = indexShard.getLatestReplicationCheckpoint();
         assertNotNull(replicationCheckpoint);
         closeShards(indexShard);
     }
 
     public void testSegmentInfosAndReplicationCheckpointTuple() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             final IndexShard primary = shards.getPrimary();
             final IndexShard replica = shards.getReplicas().get(0);
@@ -169,7 +169,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
 
     public void testSegmentReplication_Index_Update_Delete() throws Exception {
         String mappings = "{ \"" + MapperService.SINGLE_MAPPING_NAME + "\": { \"properties\": { \"foo\": { \"type\": \"keyword\"} }}}";
-        try (ReplicationGroup shards = createGroup(2, settings, mappings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(2, settings, mappings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             final IndexShard primaryShard = shards.getPrimary();
 
@@ -218,7 +218,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testIgnoreShardIdle() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             final IndexShard primary = shards.getPrimary();
             final IndexShard replica = shards.getReplicas().get(0);
@@ -319,7 +319,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testReplicaReceivesGenIncrease() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             final IndexShard primary = shards.getPrimary();
             final IndexShard replica = shards.getReplicas().get(0);
@@ -368,7 +368,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
         final IndexShard primaryTarget = newShard(
             primarySource.routingEntry().getTargetRelocatingShard(),
             settings,
-            new NRTReplicationEngineFactory()
+            new NRTReplicationEngineFactory(null)
         );
         updateMappings(primaryTarget, primarySource.indexSettings().getIndexMetadata());
 
@@ -405,7 +405,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
         final IndexShard primaryTarget = newShard(
             primarySource.routingEntry().getTargetRelocatingShard(),
             settings,
-            new NRTReplicationEngineFactory()
+            new NRTReplicationEngineFactory(null)
         );
         updateMappings(primaryTarget, primarySource.indexSettings().getIndexMetadata());
 
@@ -561,7 +561,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
         // index docs on new primary and flush
         // replicate to all.
         // Expected result: State Gens: P[4], R-1 [4], R-2 [4]
-        try (ReplicationGroup shards = createGroup(2, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(2, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             final IndexShard primary = shards.getPrimary();
             final IndexShard replica_1 = shards.getReplicas().get(0);
@@ -592,7 +592,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testReplicaRestarts() throws Exception {
-        try (ReplicationGroup shards = createGroup(3, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(3, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             IndexShard primary = shards.getPrimary();
             // 1. Create ops that are in the index and xlog of both shards but not yet part of a commit point.
@@ -671,7 +671,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
             .put(IndexMetadata.SETTING_REMOTE_STORE_ENABLED, true)
             .build();
 
-        try (ReplicationGroup shards = createGroup(1, settings, indexMapping, new NRTReplicationEngineFactory(), createTempDir())) {
+        try (ReplicationGroup shards = createGroup(1, settings, indexMapping, new NRTReplicationEngineFactory(null), createTempDir())) {
             shards.startAll();
             IndexShard oldPrimary = shards.getPrimary();
             final IndexShard nextPrimary = shards.getReplicas().get(0);
@@ -739,7 +739,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testNRTReplicaPromotedAsPrimary() throws Exception {
-        try (ReplicationGroup shards = createGroup(2, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(2, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             IndexShard oldPrimary = shards.getPrimary();
             final IndexShard nextPrimary = shards.getReplicas().get(0);
@@ -807,7 +807,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testReplicaPromotedWhileReplicating() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             final IndexShard oldPrimary = shards.getPrimary();
             final IndexShard nextPrimary = shards.getReplicas().get(0);
@@ -883,7 +883,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testReplicaClosesWhileReplicating_AfterGetCheckpoint() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             IndexShard primary = shards.getPrimary();
             final IndexShard replica = shards.getReplicas().get(0);
@@ -925,7 +925,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testReplicaClosesWhileReplicating_AfterGetSegmentFiles() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             IndexShard primary = shards.getPrimary();
             final IndexShard replica = shards.getReplicas().get(0);
@@ -967,7 +967,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     }
 
     public void testPrimaryCancelsExecution() throws Exception {
-        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory())) {
+        try (ReplicationGroup shards = createGroup(1, settings, new NRTReplicationEngineFactory(null))) {
             shards.startAll();
             IndexShard primary = shards.getPrimary();
             final IndexShard replica = shards.getReplicas().get(0);
