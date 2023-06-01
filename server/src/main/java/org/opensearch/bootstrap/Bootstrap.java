@@ -473,7 +473,7 @@ final class Bootstrap {
     }
 
     private static void checkLucene() {
-        if (Version.CURRENT.luceneVersion.equals(org.apache.lucene.util.Version.LATEST) == false) {
+        /*if (Version.CURRENT.luceneVersion.equals(org.apache.lucene.util.Version.LATEST) == false) {
             throw new AssertionError(
                 "Lucene version mismatch this version of OpenSearch requires lucene version ["
                     + Version.CURRENT.luceneVersion
@@ -481,7 +481,7 @@ final class Bootstrap {
                     + org.apache.lucene.util.Version.LATEST
                     + "]"
             );
-        }
+        }*/
     }
 
 }

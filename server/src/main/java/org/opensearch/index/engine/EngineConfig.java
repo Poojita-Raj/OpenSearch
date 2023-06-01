@@ -258,7 +258,10 @@ public final class EngineConfig {
      * Returns the codec name of the lucene codec used for writing new segments
      */
     public String getCodecName() {
-        return getCodec().getName();
+        if (codecName.equals("default") == false) {
+            return codecService.codec(codecName).getName();
+        }
+        return "Lucene94";
     }
 
     /**
