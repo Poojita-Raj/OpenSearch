@@ -83,6 +83,7 @@ public class CodecService {
 
     public void loadMap() {
         versionStringMap.put(Version.fromString("3.0.0"), "Lucene95");
+        versionStringMap.put(Version.fromString("2.9.0"), "Lucene95");
         versionStringMap.put(Version.fromString("2.8.0"), "Lucene95");
         versionStringMap.put(Version.fromString("2.7.1"), "Lucene95");
         versionStringMap.put(Version.fromString("2.7.0"), "Lucene95");
