@@ -1130,6 +1130,11 @@ public abstract class StreamOutput extends OutputStream {
         throw new AssertionError("too many nested exceptions", throwable);
     }
 
+    /** Writes the OpenSearch {@link Version} to the output stream */
+    public void writeVersion(final Version version) throws IOException {
+        writeVInt(version.id);
+    }
+
     /**
      * Writes a {@link NamedWriteable} to the current stream, by first writing its name and then the object itself
      */

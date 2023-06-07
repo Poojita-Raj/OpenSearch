@@ -82,7 +82,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
             length = 0L;
             codec = null;
         }
-        if (in.getVersion().onOrAfter(Version.V_2_8_0)) {
+        if (in.getVersion().onOrAfter(Version.V_2_9_0)) {
             minVersion = in.readVersion();
         } else {
             minVersion = Version.CURRENT;
@@ -154,7 +154,7 @@ public class ReplicationCheckpoint implements Writeable, Comparable<ReplicationC
             out.writeLong(length);
             out.writeString(codec);
         }
-        if (out.getVersion().onOrAfter(Version.V_2_8_0)) {
+        if (out.getVersion().onOrAfter(Version.V_2_9_0)) {
             out.writeVersion(minVersion);
         }
     }
