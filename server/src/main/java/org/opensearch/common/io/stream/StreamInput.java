@@ -1127,6 +1127,11 @@ public abstract class StreamInput extends InputStream {
         return null;
     }
 
+    /** Reads the OpenSearch Version from the input stream */
+    public Version readVersion() throws IOException {
+        return Version.fromId(readVInt());
+    }
+
     /**
      * Get the registry of named writeables if this stream has one,
      * {@code null} otherwise.
