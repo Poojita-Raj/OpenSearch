@@ -506,7 +506,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * Returns the name of the default codec in codecService
      */
     public String getDefaultCodecName() {
-        return codecService.codec(CodecService.DEFAULT_CODEC).getName();
+        return "Lucene94";// return codecService.codec(CodecService.DEFAULT_CODEC).getName();
     }
 
     /**
