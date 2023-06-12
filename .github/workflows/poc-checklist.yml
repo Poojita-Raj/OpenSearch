@@ -15,7 +15,10 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## Please go through this checklist for your POC before you proceed:
+            ### POC Checklist:
+
+            Please go through the following checklist to ensure these items are taken into account while designing the POC.
+
             - [ ] Supports safe upgrade paths from all supported BWC versions to the current version
             - [ ] Supports compatibility with all plugins
                 - [ ] opensearch-alerting
@@ -36,7 +39,7 @@ jobs:
                 - [ ] opensearch-sql
             - [ ] Supports lucene upgrades across minor lucene versions
             - [ ] Supports lucene upgrades across major lucene versions
-            - [ ] Supports lucene upgrades across lucene codec bumps (Eg: Lucene95Codec -> Lucene95Codec)
+            - [ ] Supports lucene upgrades across underlying lucene codec bumps (Eg: Lucene95Codec -> Lucene96Codec)
             - [ ] Supports wire compatibility of OpenSearch
             - [ ] Plan to measure performance degradation/improvement (if any)
             - [ ] Plan to document any user facing changes introduced by this feature
