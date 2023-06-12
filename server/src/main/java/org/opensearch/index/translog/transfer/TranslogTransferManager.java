@@ -16,6 +16,7 @@ import org.opensearch.action.ActionListener;
 import org.opensearch.action.LatchedActionListener;
 import org.opensearch.common.blobstore.BlobPath;
 import org.opensearch.common.lucene.store.ByteArrayIndexInput;
+import org.opensearch.index.shard.ShardId;
 import org.opensearch.index.translog.Translog;
 import org.opensearch.index.translog.transfer.listener.TranslogTransferListener;
 import org.opensearch.threadpool.ThreadPool;
@@ -47,8 +48,9 @@ import static org.opensearch.index.translog.transfer.TranslogTransferMetadata.ge
  */
 public class TranslogTransferManager {
 
+    private final ShardId shardId;
     private final TransferService transferService;
-    private final BlobPath remoteBaseTransferPath;
+    private final BlobPath remoteDataTransferPath;
     private final BlobPath remoteMetadataTransferPath;
     private final FileTransferTracker fileTransferTracker;
 
@@ -57,16 +59,23 @@ public class TranslogTransferManager {
     private static final Logger logger = LogManager.getLogger(TranslogTransferManager.class);
 
     private final static String METADATA_DIR = "metadata";
+    private final static String DATA_DIR = "data";
 
     public TranslogTransferManager(
+        ShardId shardId,
         TransferService transferService,
-        BlobPath remoteBaseTransferPath,
+        BlobPath remoteDataTransferPath,
         FileTransferTracker fileTransferTracker
     ) {
+        this.shardId = shardId;
         this.transferService = transferService;
-        this.remoteBaseTransferPath = remoteBaseTransferPath;
-        this.remoteMetadataTransferPath = remoteBaseTransferPath.add(METADATA_DIR);
+        this.remoteDataTransferPath = remoteDataTransferPath.add(DATA_DIR);
+        this.remoteMetadataTransferPath = remoteDataTransferPath.add(METADATA_DIR);
         this.fileTransferTracker = fileTransferTracker;
+    }
+
+    public ShardId getShardId() {
+        return this.shardId;
     }
 
     public boolean transferSnapshot(TransferSnapshot transferSnapshot, TranslogTransferListener translogTransferListener)
@@ -102,7 +111,7 @@ public class TranslogTransferManager {
                 fileSnapshot -> transferService.uploadBlobAsync(
                     ThreadPool.Names.TRANSLOG_TRANSFER,
                     fileSnapshot,
-                    remoteBaseTransferPath.add(String.valueOf(fileSnapshot.getPrimaryTerm())),
+                    remoteDataTransferPath.add(String.valueOf(fileSnapshot.getPrimaryTerm())),
                     latchedActionListener
                 )
             );
@@ -156,7 +165,7 @@ public class TranslogTransferManager {
         if (Files.exists(filePath)) {
             Files.delete(filePath);
         }
-        try (InputStream inputStream = transferService.downloadBlob(remoteBaseTransferPath.add(primaryTerm), fileName)) {
+        try (InputStream inputStream = transferService.downloadBlob(remoteDataTransferPath.add(primaryTerm), fileName)) {
             Files.copy(inputStream, filePath);
         }
         // Mark in FileTransferTracker so that the same files are not uploaded at the time of translog sync
@@ -229,8 +238,8 @@ public class TranslogTransferManager {
      * @param minPrimaryTermToKeep all primary terms below this primary term are deleted.
      */
     public void deletePrimaryTermsAsync(long minPrimaryTermToKeep) {
-        logger.info("Deleting primary terms from remote store lesser than {}", minPrimaryTermToKeep);
-        transferService.listFoldersAsync(ThreadPool.Names.REMOTE_PURGE, remoteBaseTransferPath, new ActionListener<>() {
+        logger.info("Deleting primary terms from remote store lesser than {} for {}", minPrimaryTermToKeep, shardId);
+        transferService.listFoldersAsync(ThreadPool.Names.REMOTE_PURGE, remoteDataTransferPath, new ActionListener<>() {
             @Override
             public void onResponse(Set<String> folders) {
                 Set<Long> primaryTermsInRemote = folders.stream().filter(folderName -> {
@@ -263,11 +272,11 @@ public class TranslogTransferManager {
     private void deletePrimaryTermAsync(long primaryTerm) {
         transferService.deleteAsync(
             ThreadPool.Names.REMOTE_PURGE,
-            remoteBaseTransferPath.add(String.valueOf(primaryTerm)),
+            remoteDataTransferPath.add(String.valueOf(primaryTerm)),
             new ActionListener<>() {
                 @Override
                 public void onResponse(Void unused) {
-                    logger.info("Deleted primary term {}", primaryTerm);
+                    logger.info("Deleted primary term {} for {}", primaryTerm, shardId);
                 }
 
                 @Override
@@ -309,7 +318,7 @@ public class TranslogTransferManager {
         try {
             transferService.deleteBlobsAsync(
                 ThreadPool.Names.REMOTE_PURGE,
-                remoteBaseTransferPath.add(String.valueOf(primaryTerm)),
+                remoteDataTransferPath.add(String.valueOf(primaryTerm)),
                 files,
                 new ActionListener<>() {
                     @Override

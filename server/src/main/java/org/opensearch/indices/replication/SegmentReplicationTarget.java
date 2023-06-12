@@ -51,18 +51,15 @@ public class SegmentReplicationTarget extends ReplicationTarget {
     private final SegmentReplicationState state;
     protected final MultiFileWriter multiFileWriter;
 
+    public final static String REPLICATION_PREFIX = "replication.";
+
     public ReplicationCheckpoint getCheckpoint() {
         return this.checkpoint;
     }
 
-    public SegmentReplicationTarget(
-        ReplicationCheckpoint checkpoint,
-        IndexShard indexShard,
-        SegmentReplicationSource source,
-        ReplicationListener listener
-    ) {
+    public SegmentReplicationTarget(IndexShard indexShard, SegmentReplicationSource source, ReplicationListener listener) {
         super("replication_target", indexShard, new ReplicationLuceneIndex(), listener);
-        this.checkpoint = checkpoint;
+        this.checkpoint = indexShard.getLatestReplicationCheckpoint();
         this.source = source;
         this.state = new SegmentReplicationState(
             indexShard.routingEntry(),
@@ -85,7 +82,7 @@ public class SegmentReplicationTarget extends ReplicationTarget {
 
     @Override
     protected String getPrefix() {
-        return "replication." + UUIDs.randomBase64UUID() + ".";
+        return REPLICATION_PREFIX + UUIDs.randomBase64UUID() + ".";
     }
 
     @Override
@@ -99,7 +96,7 @@ public class SegmentReplicationTarget extends ReplicationTarget {
     }
 
     public SegmentReplicationTarget retryCopy() {
-        return new SegmentReplicationTarget(checkpoint, indexShard, source, listener);
+        return new SegmentReplicationTarget(indexShard, source, listener);
     }
 
     @Override
@@ -207,10 +204,18 @@ public class SegmentReplicationTarget extends ReplicationTarget {
         // always send a req even if not fetching files so the primary can clear the copyState for this shard.
         state.setStage(SegmentReplicationState.Stage.GET_FILES);
         cancellableThreads.checkForCancel();
-        source.getSegmentFiles(getId(), checkpointInfo.getCheckpoint(), diff.missing, store, getFilesListener);
+        source.getSegmentFiles(getId(), checkpointInfo.getCheckpoint(), diff.missing, indexShard, getFilesListener);
     }
 
     private void finalizeReplication(CheckpointInfoResponse checkpointInfoResponse, ActionListener<Void> listener) {
+        // TODO: Refactor the logic so that finalize doesn't have to be invoked for remote store as source
+        if (source instanceof RemoteStoreReplicationSource) {
+            ActionListener.completeWith(listener, () -> {
+                state.setStage(SegmentReplicationState.Stage.FINALIZE_REPLICATION);
+                return null;
+            });
+            return;
+        }
         ActionListener.completeWith(listener, () -> {
             cancellableThreads.checkForCancel();
             state.setStage(SegmentReplicationState.Stage.FINALIZE_REPLICATION);
@@ -228,7 +233,6 @@ public class SegmentReplicationTarget extends ReplicationTarget {
                 );
                 cancellableThreads.checkForCancel();
                 indexShard.finalizeReplication(infos);
-                store.cleanupAndPreserveLatestCommitPoint("finalize - clean with in memory infos", infos);
             } catch (CorruptIndexException | IndexFormatTooNewException | IndexFormatTooOldException ex) {
                 // this is a fatal exception at this stage.
                 // this means we transferred files from the remote that have not be checksummed and they are
@@ -290,5 +294,6 @@ public class SegmentReplicationTarget extends ReplicationTarget {
     protected void onCancel(String reason) {
         cancellableThreads.cancel(reason);
         source.cancel();
+        multiFileWriter.close();
     }
 }

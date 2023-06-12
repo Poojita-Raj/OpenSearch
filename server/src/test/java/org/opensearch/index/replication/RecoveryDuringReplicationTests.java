@@ -47,10 +47,10 @@ import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.common.lease.Releasable;
 import org.opensearch.common.lucene.uid.Versions;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.core.common.lease.Releasable;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.VersionType;
 import org.opensearch.index.engine.DocIdSeqNoAndSource;
@@ -152,6 +152,7 @@ public class RecoveryDuringReplicationTests extends OpenSearchIndexLevelReplicat
             final IndexShard remainingReplica = shards.getReplicas().get(1);
             // slip the extra document into the replica
             remainingReplica.applyIndexOperationOnReplica(
+                "id",
                 remainingReplica.getLocalCheckpoint() + 1,
                 remainingReplica.getOperationPrimaryTerm(),
                 1,
