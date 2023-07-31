@@ -22,9 +22,11 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.apache.lucene.util.BytesRef;
 import org.junit.Before;
 import org.opensearch.common.action.ActionFuture;
+import org.opensearch.action.admin.indices.alias.Alias;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.search.CreatePitAction;
 import org.opensearch.action.search.CreatePitRequest;
@@ -86,6 +88,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.equalTo;
 import static org.opensearch.action.search.PitTestsUtil.assertSegments;
 import static org.opensearch.action.search.SearchContextId.decode;
 import static org.opensearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -107,6 +110,10 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
     @Before
     private void setup() {
         internalCluster().startClusterManagerOnlyNode();
+    }
+
+    static String indexOrAlias() {
+        return randomBoolean() ? INDEX_NAME : "alias";
     }
 
     public void testPrimaryStopped_ReplicaPromoted() throws Exception {
@@ -1438,5 +1445,35 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
         internalCluster().restartNode(primary);
         ensureYellow(INDEX_NAME);
         assertDocCounts(1, primary);
+    }
+
+    /**
+     * Tests whether segment replication supports realtime get requests and reads and parses source from the translog to serve strong reads.
+     */
+    public void testRealtimeGetRequests() {
+        final String primary = internalCluster().startDataOnlyNode();
+        final String replica = internalCluster().startDataOnlyNode();
+
+        assertAcked(
+            prepareCreate(INDEX_NAME).setSettings(Settings.builder().put("index.refresh_interval", -1).put(indexSettings()))
+                .addAlias(new Alias("alias"))
+        );
+        ensureGreen(INDEX_NAME);
+
+        GetResponse response = client().prepareGet(indexOrAlias(), "1").get();
+        assertThat(response.isExists(), equalTo(false));
+
+        logger.info("--> index doc 1");
+        client().prepareIndex(indexOrAlias()).setId("1").setSource("foo", "bar").get();
+
+        logger.info("--> non realtime get 1");
+        response = client().prepareGet(indexOrAlias(), "1").setRealtime(false).get();
+        assertThat(response.isExists(), equalTo(false));
+
+        logger.info("--> realtime get 1");
+        response = client().prepareGet(indexOrAlias(), "1").get();
+        assertThat(response.isExists(), equalTo(true));
+        assertThat(response.getIndex(), equalTo(INDEX_NAME));
+        assertThat(response.getSourceAsMap().get("foo").toString(), equalTo("bar"));
     }
 }
