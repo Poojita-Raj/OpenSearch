@@ -1457,6 +1457,7 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
      */
     public void testRealtimeGetRequestsSuccessful() {
         final String primary = internalCluster().startDataOnlyNode();
+        // refresh interval disabled to ensure refresh rate of index (when data is ready for search) doesn't affect realtime get
         assertAcked(
             prepareCreate(INDEX_NAME).setSettings(Settings.builder().put("index.refresh_interval", -1).put(indexSettings()))
                 .addAlias(new Alias("alias"))
@@ -1517,6 +1518,7 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
      */
     public void testRealtimeMultiGetRequestsSuccessful() {
         final String primary = internalCluster().startDataOnlyNode();
+        // refresh interval disabled to ensure refresh rate of index (when data is ready for search) doesn't affect realtime multi get
         assertAcked(
             prepareCreate(INDEX_NAME).setSettings(Settings.builder().put("index.refresh_interval", -1).put(indexSettings()))
                 .addAlias(new Alias("alias"))
