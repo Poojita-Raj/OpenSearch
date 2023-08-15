@@ -1465,6 +1465,8 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
         final String replica = internalCluster().startDataOnlyNode();
         ensureGreen(INDEX_NAME);
 
+        final String id = routingKeyForShard(INDEX_NAME, 0);
+
         GetResponse response = client(replica).prepareGet(indexOrAlias(), "1").get();
         assertFalse(response.isExists());
 
@@ -1475,11 +1477,20 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
         response = client().prepareGet(indexOrAlias(), "1").setRealtime(false).get();
         assertFalse(response.isExists());
 
-        // realtime get 1 (on replica shard only)
+        // realtime get 1
         response = client(replica).prepareGet(indexOrAlias(), "1").get();
         assertTrue(response.isExists());
         assertThat(response.getIndex(), equalTo(INDEX_NAME));
         assertThat(response.getSourceAsMap().get("foo").toString(), equalTo("bar"));
+
+        // index doc 2
+        client().prepareIndex(indexOrAlias()).setId("2").setSource("foo2", "bar2").setRouting(id).get();
+
+        // realtime get 2 (with routing)
+        response = client(replica).prepareGet(indexOrAlias(), "2").setRouting(id).get();
+        assertTrue(response.isExists());
+        assertThat(response.getIndex(), equalTo(INDEX_NAME));
+        assertThat(response.getSourceAsMap().get("foo2").toString(), equalTo("bar2"));
     }
 
     public void testRealtimeGetRequestsUnsuccessful() {
@@ -1520,14 +1531,20 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
         final String primary = internalCluster().startDataOnlyNode();
         // refresh interval disabled to ensure refresh rate of index (when data is ready for search) doesn't affect realtime multi get
         assertAcked(
-            prepareCreate(INDEX_NAME).setSettings(Settings.builder().put("index.refresh_interval", -1).put(indexSettings()))
-                .addAlias(new Alias("alias"))
+            prepareCreate(INDEX_NAME).setSettings(
+                Settings.builder().put("index.refresh_interval", -1).put(indexSettings()).put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 2)
+            ).addAlias(new Alias("alias"))
         );
         final String replica = internalCluster().startDataOnlyNode();
         ensureGreen(INDEX_NAME);
 
+        final String id = routingKeyForShard(INDEX_NAME, 0);
+
         // index doc 1
         client().prepareIndex(INDEX_NAME).setId("1").setSource("foo", "bar").get();
+
+        // index doc 2
+        client().prepareIndex(INDEX_NAME).setId("2").setSource("foo2", "bar2").setRouting(id).get();
 
         // multi get non realtime 1
         MultiGetResponse mgetResponse = client().prepareMultiGet()
@@ -1544,19 +1561,24 @@ public class SegmentReplicationIT extends SegmentReplicationBaseIT {
         // multi get realtime 1
         mgetResponse = client(replica).prepareMultiGet()
             .add(new MultiGetRequest.Item(INDEX_NAME, "1"))
+            .add(new MultiGetRequest.Item(INDEX_NAME, "2").routing(id))
             .add(new MultiGetRequest.Item("nonExistingIndex", "1"))
             .get();
 
-        assertThat(mgetResponse.getResponses().length, is(2));
+        assertThat(mgetResponse.getResponses().length, is(3));
         assertThat(mgetResponse.getResponses()[0].getIndex(), is(INDEX_NAME));
         assertFalse(mgetResponse.getResponses()[0].isFailed());
         assertThat(mgetResponse.getResponses()[0].getResponse().getSourceAsMap().get("foo").toString(), equalTo("bar"));
 
-        assertThat(mgetResponse.getResponses()[1].getIndex(), is("nonExistingIndex"));
-        assertTrue(mgetResponse.getResponses()[1].isFailed());
-        assertThat(mgetResponse.getResponses()[1].getFailure().getMessage(), is("no such index [nonExistingIndex]"));
+        assertThat(mgetResponse.getResponses()[1].getIndex(), is(INDEX_NAME));
+        assertFalse(mgetResponse.getResponses()[1].isFailed());
+        assertThat(mgetResponse.getResponses()[1].getResponse().getSourceAsMap().get("foo2").toString(), equalTo("bar2"));
+
+        assertThat(mgetResponse.getResponses()[2].getIndex(), is("nonExistingIndex"));
+        assertTrue(mgetResponse.getResponses()[2].isFailed());
+        assertThat(mgetResponse.getResponses()[2].getFailure().getMessage(), is("no such index [nonExistingIndex]"));
         assertThat(
-            ((OpenSearchException) mgetResponse.getResponses()[1].getFailure().getFailure()).getIndex().getName(),
+            ((OpenSearchException) mgetResponse.getResponses()[2].getFailure().getFailure()).getIndex().getName(),
             is("nonExistingIndex")
         );
     }

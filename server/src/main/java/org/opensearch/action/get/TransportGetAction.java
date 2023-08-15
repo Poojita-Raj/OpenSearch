@@ -91,16 +91,19 @@ public class TransportGetAction extends TransportSingleShardAction<GetRequest, G
         return true;
     }
 
+    protected static boolean isSegmentReplicationEnabled(ClusterState state, String indexName) {
+        IndexMetadata indexMetadata = state.getMetadata().index(indexName);
+        return ReplicationType.parseString(indexMetadata.getSettings().get(IndexMetadata.SETTING_REPLICATION_TYPE))
+            .equals(ReplicationType.SEGMENT);
+    }
+
     /**
      * Returns true if GET request should be routed to primary shards, else false.
      */
     protected boolean isPrimaryBasedRouting(ClusterState state, InternalRequest request) {
-        IndexMetadata indexMetadata = state.getMetadata().index(request.concreteIndex());
-        return indexMetadata != null
-            && indexMetadata.getSettings().get(IndexMetadata.SETTING_REPLICATION_TYPE).equals(ReplicationType.SEGMENT.toString())
-            && request.request().realtime()
-            && request.request().routing() == null
-            && request.request().preference() == null;
+        return request.request().realtime()
+            && request.request().preference() == null
+            && isSegmentReplicationEnabled(state, request.concreteIndex());
     }
 
     @Override
