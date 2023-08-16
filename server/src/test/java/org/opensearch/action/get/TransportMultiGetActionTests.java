@@ -33,6 +33,7 @@
 package org.opensearch.action.get;
 
 import org.opensearch.Version;
+import org.opensearch.cluster.routing.Preference;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.RoutingMissingException;
@@ -283,6 +284,35 @@ public class TransportMultiGetActionTests extends OpenSearchTestCase {
         transportAction.execute(task, request.request(), new ActionListenerAdapter());
         assertTrue(shardActionInvoked.get());
 
+    }
+
+    public void testIsPrimaryBasedRouting() {
+        final Task task = createTask();
+        final NodeClient client = new NodeClient(Settings.EMPTY, threadPool);
+
+        // request with preference set
+        final MultiGetRequestBuilder request = new MultiGetRequestBuilder(client, MultiGetAction.INSTANCE);
+        request.add(new MultiGetRequest.Item("index2", "1"));
+        request.add(new MultiGetRequest.Item("index2", "2"));
+        request.setPreference(Preference.REPLICA.type());
+
+        transportAction = new TransportMultiGetAction(
+            transportService,
+            clusterService,
+            shardAction,
+            new ActionFilters(emptySet()),
+            new Resolver()
+        );
+        // should return false since preference is set for request
+        assertFalse(transportAction.isPrimaryBasedRouting(request.request(), "index2"));
+
+        request.setPreference(null).setRealtime(false);
+        // should return false since request is not realtime
+        assertFalse(transportAction.isPrimaryBasedRouting(request.request(), "index2"));
+
+        request.setRealtime(true);
+        // should return false since segment replication is not enabled
+        assertFalse(transportAction.isPrimaryBasedRouting(request.request(), "index2"));
     }
 
     private static Task createTask() {
