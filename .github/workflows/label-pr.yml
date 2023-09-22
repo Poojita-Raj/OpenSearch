@@ -1,0 +1,39 @@
+name: Label PR with Linked Issue Labels
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  label_pr_with_issue_labels:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Get linked issue number
+        id: extract_issue
+        run: echo "::set-output name=issue_number::$(jq -r '.issue.number' $GITHUB_EVENT_PATH)"
+
+      - name: Get issue labels
+        id: extract_labels
+        run: |
+          token=$GITHUB_TOKEN
+          issue_number=${{ steps.extract_issue.outputs.issue_number }}
+          labels=$(curl -s -H "Authorization: token $token" "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$issue_number/labels" | jq -r '.[].name')
+          echo "::set-output name=issue_labels::$labels"
+
+      - name: Label PR with issue labels
+        uses: actions/github-script@v5
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
+          script: |
+            const issueLabels = "${{ steps.extract_labels.outputs.issue_labels }}".split("\n").filter(Boolean);
+            const prNumber = context.payload.pull_request.number;
+            await github.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: issueLabels
+            });
+
