@@ -34,6 +34,7 @@ package org.opensearch.action.search;
 import org.opensearch.common.CheckedRunnable;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -41,11 +42,21 @@ import java.util.Objects;
  *
  * @opensearch.internal
  */
-abstract class SearchPhase implements CheckedRunnable<IOException> {
+public abstract class SearchPhase implements CheckedRunnable<IOException> {
     private final String name;
+    private long startTimeInNanos;
 
     protected SearchPhase(String name) {
         this.name = Objects.requireNonNull(name, "name must not be null");
+    }
+
+    public long getStartTimeInNanos() {
+        return startTimeInNanos;
+    }
+
+    public void recordAndRun() throws IOException {
+        this.startTimeInNanos = System.nanoTime();
+        run();
     }
 
     /**
@@ -53,5 +64,14 @@ abstract class SearchPhase implements CheckedRunnable<IOException> {
      */
     public String getName() {
         return name;
+    }
+
+    /**
+     * Returns the SearchPhase name as {@link SearchPhaseName}. Exception will come if SearchPhase name is not defined
+     * in {@link SearchPhaseName}
+     * @return {@link SearchPhaseName}
+     */
+    public SearchPhaseName getSearchPhaseName() {
+        return SearchPhaseName.valueOf(name.toUpperCase(Locale.ROOT));
     }
 }

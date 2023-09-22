@@ -32,24 +32,11 @@
 
 package org.opensearch.repositories.s3;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.ExceptionsHelper;
-import org.opensearch.common.Nullable;
-import org.opensearch.common.SetOnce;
-import org.opensearch.common.blobstore.BlobContainer;
-import org.opensearch.common.blobstore.BlobMetadata;
-import org.opensearch.common.blobstore.BlobPath;
-import org.opensearch.common.blobstore.BlobStoreException;
-import org.opensearch.common.blobstore.DeleteResult;
-import org.opensearch.common.blobstore.support.AbstractBlobContainer;
-import org.opensearch.common.blobstore.support.PlainBlobMetadata;
-import org.opensearch.common.collect.Tuple;
-import org.opensearch.common.unit.ByteSizeUnit;
-import org.opensearch.common.unit.ByteSizeValue;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -59,10 +46,15 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectAttributesRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectAttributesResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.ObjectAttributes;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Error;
@@ -70,7 +62,34 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.common.Nullable;
+import org.opensearch.common.SetOnce;
+import org.opensearch.common.StreamContext;
+import org.opensearch.common.annotation.ExperimentalApi;
+import org.opensearch.common.blobstore.AsyncMultiStreamBlobContainer;
+import org.opensearch.common.blobstore.BlobContainer;
+import org.opensearch.common.blobstore.BlobMetadata;
+import org.opensearch.common.blobstore.BlobPath;
+import org.opensearch.common.blobstore.BlobStoreException;
+import org.opensearch.common.blobstore.DeleteResult;
+import org.opensearch.common.blobstore.stream.read.ReadContext;
+import org.opensearch.common.blobstore.stream.write.WriteContext;
+import org.opensearch.common.blobstore.stream.write.WritePriority;
+import org.opensearch.common.blobstore.support.AbstractBlobContainer;
+import org.opensearch.common.blobstore.support.PlainBlobMetadata;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.io.InputStreamContainer;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.core.common.Strings;
+import org.opensearch.core.common.unit.ByteSizeUnit;
+import org.opensearch.core.common.unit.ByteSizeValue;
+import org.opensearch.repositories.s3.async.UploadRequest;
+import org.opensearch.repositories.s3.utils.HttpRangeUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -81,6 +100,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -89,12 +109,13 @@ import static org.opensearch.repositories.s3.S3Repository.MAX_FILE_SIZE;
 import static org.opensearch.repositories.s3.S3Repository.MAX_FILE_SIZE_USING_MULTIPART;
 import static org.opensearch.repositories.s3.S3Repository.MIN_PART_SIZE_USING_MULTIPART;
 
-class S3BlobContainer extends AbstractBlobContainer {
+class S3BlobContainer extends AbstractBlobContainer implements AsyncMultiStreamBlobContainer {
 
     private static final Logger logger = LogManager.getLogger(S3BlobContainer.class);
 
     /**
      * Maximum number of deletes in a {@link DeleteObjectsRequest}.
+     *
      * @see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html">S3 Documentation</a>.
      */
     private static final int MAX_BULK_DELETES = 1000;
@@ -163,6 +184,87 @@ class S3BlobContainer extends AbstractBlobContainer {
             }
             return null;
         });
+    }
+
+    @Override
+    public void asyncBlobUpload(WriteContext writeContext, ActionListener<Void> completionListener) throws IOException {
+        UploadRequest uploadRequest = new UploadRequest(
+            blobStore.bucket(),
+            buildKey(writeContext.getFileName()),
+            writeContext.getFileSize(),
+            writeContext.getWritePriority(),
+            writeContext.getUploadFinalizer(),
+            writeContext.doRemoteDataIntegrityCheck(),
+            writeContext.getExpectedChecksum()
+        );
+        try {
+            long partSize = blobStore.getAsyncTransferManager().calculateOptimalPartSize(writeContext.getFileSize());
+            StreamContext streamContext = SocketAccess.doPrivileged(() -> writeContext.getStreamProvider(partSize));
+            try (AmazonAsyncS3Reference amazonS3Reference = SocketAccess.doPrivileged(blobStore::asyncClientReference)) {
+
+                S3AsyncClient s3AsyncClient = writeContext.getWritePriority() == WritePriority.HIGH
+                    ? amazonS3Reference.get().priorityClient()
+                    : amazonS3Reference.get().client();
+                CompletableFuture<Void> completableFuture = blobStore.getAsyncTransferManager()
+                    .uploadObject(s3AsyncClient, uploadRequest, streamContext);
+                completableFuture.whenComplete((response, throwable) -> {
+                    if (throwable == null) {
+                        completionListener.onResponse(response);
+                    } else {
+                        Exception ex = throwable instanceof Error ? new Exception(throwable) : (Exception) throwable;
+                        completionListener.onFailure(ex);
+                    }
+                });
+            }
+        } catch (Exception e) {
+            logger.info("exception error from blob container for file {}", writeContext.getFileName());
+            throw new IOException(e);
+        }
+    }
+
+    @ExperimentalApi
+    @Override
+    public void readBlobAsync(String blobName, ActionListener<ReadContext> listener) {
+        try (AmazonAsyncS3Reference amazonS3Reference = SocketAccess.doPrivileged(blobStore::asyncClientReference)) {
+            final S3AsyncClient s3AsyncClient = amazonS3Reference.get().client();
+            final String bucketName = blobStore.bucket();
+
+            final GetObjectAttributesResponse blobMetadata = getBlobMetadata(s3AsyncClient, bucketName, blobName).get();
+
+            final long blobSize = blobMetadata.objectSize();
+            final int numberOfParts = blobMetadata.objectParts().totalPartsCount();
+            final String blobChecksum = blobMetadata.checksum().checksumCRC32();
+
+            final List<InputStreamContainer> blobPartStreams = new ArrayList<>();
+            final List<CompletableFuture<InputStreamContainer>> blobPartInputStreamFutures = new ArrayList<>();
+            // S3 multipart files use 1 to n indexing
+            for (int partNumber = 1; partNumber <= numberOfParts; partNumber++) {
+                blobPartInputStreamFutures.add(getBlobPartInputStreamContainer(s3AsyncClient, bucketName, blobName, partNumber));
+            }
+
+            CompletableFuture.allOf(blobPartInputStreamFutures.toArray(CompletableFuture[]::new)).whenComplete((unused, throwable) -> {
+                if (throwable == null) {
+                    listener.onResponse(
+                        new ReadContext(
+                            blobSize,
+                            blobPartInputStreamFutures.stream().map(CompletableFuture::join).collect(Collectors.toList()),
+                            blobChecksum
+                        )
+                    );
+                } else {
+                    Exception ex = throwable.getCause() instanceof Exception
+                        ? (Exception) throwable.getCause()
+                        : new Exception(throwable.getCause());
+                    listener.onFailure(ex);
+                }
+            });
+        } catch (Exception ex) {
+            listener.onFailure(SdkException.create("Error occurred while fetching blob parts from the repository", ex));
+        }
+    }
+
+    public boolean remoteIntegrityCheckSupported() {
+        return true;
     }
 
     // package private for testing
@@ -297,6 +399,31 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     @Override
+    public List<BlobMetadata> listBlobsByPrefixInSortedOrder(String blobNamePrefix, int limit, BlobNameSortOrder blobNameSortOrder)
+        throws IOException {
+        // As AWS S3 returns list of keys in Lexicographic order, we don't have to fetch all the keys in order to sort them
+        // We fetch only keys as per the given limit to optimize the fetch. If provided sort order is not Lexicographic,
+        // we fall-back to default implementation of fetching all the keys and sorting them.
+        if (blobNameSortOrder != BlobNameSortOrder.LEXICOGRAPHIC) {
+            return super.listBlobsByPrefixInSortedOrder(blobNamePrefix, limit, blobNameSortOrder);
+        } else {
+            if (limit < 0) {
+                throw new IllegalArgumentException("limit should not be a negative value");
+            }
+            String prefix = blobNamePrefix == null ? keyPath : buildKey(blobNamePrefix);
+            try (AmazonS3Reference clientReference = blobStore.clientReference()) {
+                List<BlobMetadata> blobs = executeListing(clientReference, listObjectsRequest(prefix, limit), limit).stream()
+                    .flatMap(listing -> listing.contents().stream())
+                    .map(s3Object -> new PlainBlobMetadata(s3Object.key().substring(keyPath.length()), s3Object.size()))
+                    .collect(Collectors.toList());
+                return blobs.subList(0, Math.min(limit, blobs.size()));
+            } catch (final Exception e) {
+                throw new IOException("Exception when listing blobs by prefix [" + prefix + "]", e);
+            }
+        }
+    }
+
+    @Override
     public Map<String, BlobMetadata> listBlobsByPrefix(@Nullable String blobNamePrefix) throws IOException {
         String prefix = blobNamePrefix == null ? keyPath : buildKey(blobNamePrefix);
         try (AmazonS3Reference clientReference = blobStore.clientReference()) {
@@ -339,10 +466,25 @@ class S3BlobContainer extends AbstractBlobContainer {
     }
 
     private static List<ListObjectsV2Response> executeListing(AmazonS3Reference clientReference, ListObjectsV2Request listObjectsRequest) {
+        return executeListing(clientReference, listObjectsRequest, -1);
+    }
+
+    private static List<ListObjectsV2Response> executeListing(
+        AmazonS3Reference clientReference,
+        ListObjectsV2Request listObjectsRequest,
+        int limit
+    ) {
         return SocketAccess.doPrivileged(() -> {
             final List<ListObjectsV2Response> results = new ArrayList<>();
+            int totalObjects = 0;
             ListObjectsV2Iterable listObjectsIterable = clientReference.get().listObjectsV2Paginator(listObjectsRequest);
-            listObjectsIterable.forEach(results::add);
+            for (ListObjectsV2Response listObjectsV2Response : listObjectsIterable) {
+                results.add(listObjectsV2Response);
+                totalObjects += listObjectsV2Response.contents().size();
+                if (limit != -1 && totalObjects > limit) {
+                    break;
+                }
+            }
             return results;
         });
     }
@@ -354,6 +496,10 @@ class S3BlobContainer extends AbstractBlobContainer {
             .delimiter("/")
             .overrideConfiguration(o -> o.addMetricPublisher(blobStore.getStatsMetricPublisher().listObjectsMetricPublisher))
             .build();
+    }
+
+    private ListObjectsV2Request listObjectsRequest(String keyPath, int limit) {
+        return listObjectsRequest(keyPath).toBuilder().maxKeys(Math.min(limit, 1000)).build();
     }
 
     private String buildKey(String blobName) {
@@ -532,5 +678,66 @@ class S3BlobContainer extends AbstractBlobContainer {
         } else {
             return Tuple.tuple(parts + 1, remaining);
         }
+    }
+
+    /**
+     * Fetches a part of the blob from the S3 bucket and transforms it to an {@link InputStreamContainer}, which holds
+     * the stream and its related metadata.
+     * @param s3AsyncClient Async client to be utilized to fetch the object part
+     * @param bucketName Name of the S3 bucket
+     * @param blobName Identifier of the blob for which the parts will be fetched
+     * @param partNumber Part number for the blob to be retrieved
+     * @return A future of {@link InputStreamContainer} containing the stream and stream metadata.
+     */
+    CompletableFuture<InputStreamContainer> getBlobPartInputStreamContainer(
+        S3AsyncClient s3AsyncClient,
+        String bucketName,
+        String blobName,
+        int partNumber
+    ) {
+        final GetObjectRequest.Builder getObjectRequestBuilder = GetObjectRequest.builder()
+            .bucket(bucketName)
+            .key(blobName)
+            .partNumber(partNumber);
+
+        return SocketAccess.doPrivileged(
+            () -> s3AsyncClient.getObject(getObjectRequestBuilder.build(), AsyncResponseTransformer.toBlockingInputStream())
+                .thenApply(S3BlobContainer::transformResponseToInputStreamContainer)
+        );
+    }
+
+    /**
+     * Transforms the stream response object from S3 into an {@link InputStreamContainer}
+     * @param streamResponse Response stream object from S3
+     * @return {@link InputStreamContainer} containing the stream and stream metadata
+     */
+    // Package-Private for testing.
+    static InputStreamContainer transformResponseToInputStreamContainer(ResponseInputStream<GetObjectResponse> streamResponse) {
+        final GetObjectResponse getObjectResponse = streamResponse.response();
+        final String contentRange = getObjectResponse.contentRange();
+        final Long contentLength = getObjectResponse.contentLength();
+        if (contentRange == null || contentLength == null) {
+            throw SdkException.builder().message("Failed to fetch required metadata for blob part").build();
+        }
+        final Long offset = HttpRangeUtils.getStartOffsetFromRangeHeader(getObjectResponse.contentRange());
+        return new InputStreamContainer(streamResponse, getObjectResponse.contentLength(), offset);
+    }
+
+    /**
+     * Retrieves the metadata like checksum, object size and parts for the provided blob within the S3 bucket.
+     * @param s3AsyncClient Async client to be utilized to fetch the metadata
+     * @param bucketName Name of the S3 bucket
+     * @param blobName Identifier of the blob for which the metadata will be fetched
+     * @return A future containing the metadata within {@link GetObjectAttributesResponse}
+     */
+    CompletableFuture<GetObjectAttributesResponse> getBlobMetadata(S3AsyncClient s3AsyncClient, String bucketName, String blobName) {
+        // Fetch blob metadata - part info, size, checksum
+        final GetObjectAttributesRequest getObjectAttributesRequest = GetObjectAttributesRequest.builder()
+            .bucket(bucketName)
+            .key(blobName)
+            .objectAttributes(ObjectAttributes.CHECKSUM, ObjectAttributes.OBJECT_SIZE, ObjectAttributes.OBJECT_PARTS)
+            .build();
+
+        return SocketAccess.doPrivileged(() -> s3AsyncClient.getObjectAttributes(getObjectAttributesRequest));
     }
 }

@@ -34,7 +34,9 @@ package org.opensearch.repositories.s3;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import fixture.s3.S3HttpHandler;
+
+import software.amazon.awssdk.core.internal.http.pipeline.stages.ApplyTransactionIdStage;
+
 import org.opensearch.cluster.metadata.RepositoryMetadata;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.SuppressForbidden;
@@ -45,7 +47,7 @@ import org.opensearch.common.regex.Regex;
 import org.opensearch.common.settings.MockSecureSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.core.common.unit.ByteSizeUnit;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.indices.recovery.RecoverySettings;
 import org.opensearch.plugins.Plugin;
@@ -55,7 +57,6 @@ import org.opensearch.repositories.s3.utils.AwsRequestSigner;
 import org.opensearch.snapshots.mockstore.BlobStoreWrapper;
 import org.opensearch.test.OpenSearchIntegTestCase;
 import org.opensearch.threadpool.ThreadPool;
-import software.amazon.awssdk.core.internal.http.pipeline.stages.ApplyTransactionIdStage;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -65,6 +66,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import fixture.s3.S3HttpHandler;
+
 import static org.hamcrest.Matchers.containsString;
 
 @SuppressForbidden(reason = "this test uses a HttpServer to emulate an S3 endpoint")
@@ -72,15 +75,12 @@ import static org.hamcrest.Matchers.containsString;
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.TEST)
 public class S3BlobStoreRepositoryTests extends OpenSearchMockAPIBasedRepositoryIntegTestCase {
 
-    private String region;
+    private final String region = "test-region";
     private String signerOverride;
     private String previousOpenSearchPathConf;
 
     @Override
     public void setUp() throws Exception {
-        if (randomBoolean()) {
-            region = "test-region";
-        }
         signerOverride = AwsRequestSigner.VERSION_FOUR_SIGNER.getName();
         previousOpenSearchPathConf = SocketAccess.doPrivileged(() -> System.setProperty("opensearch.path.conf", "config"));
         super.setUp();
@@ -147,9 +147,8 @@ public class S3BlobStoreRepositoryTests extends OpenSearchMockAPIBasedRepository
         if (signerOverride != null) {
             builder.put(S3ClientSettings.SIGNER_OVERRIDE.getConcreteSettingForNamespace("test").getKey(), signerOverride);
         }
-        if (region != null) {
-            builder.put(S3ClientSettings.REGION.getConcreteSettingForNamespace("test").getKey(), region);
-        }
+
+        builder.put(S3ClientSettings.REGION.getConcreteSettingForNamespace("test").getKey(), region);
         return builder.build();
     }
 
@@ -176,7 +175,7 @@ public class S3BlobStoreRepositoryTests extends OpenSearchMockAPIBasedRepository
             ClusterService clusterService,
             RecoverySettings recoverySettings
         ) {
-            return new S3Repository(metadata, registry, service, clusterService, recoverySettings) {
+            return new S3Repository(metadata, registry, service, clusterService, recoverySettings, null, null, null, null, false) {
 
                 @Override
                 public BlobStore blobStore() {
@@ -218,7 +217,7 @@ public class S3BlobStoreRepositoryTests extends OpenSearchMockAPIBasedRepository
             if ("AWS4SignerType".equals(signerOverride)) {
                 assertThat(authorizationHeaderV4, containsString("aws4_request"));
             }
-            if (region != null && authorizationHeaderV4 != null) {
+            if (authorizationHeaderV4 != null) {
                 assertThat(authorizationHeaderV4, containsString("/" + region + "/s3/"));
             }
         }

@@ -34,29 +34,30 @@ package org.opensearch.action.search;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
-import org.opensearch.BaseOpenSearchException;
 import org.opensearch.ExceptionsHelper;
+import org.opensearch.OpenSearchException;
 import org.opensearch.Version;
-import org.opensearch.action.ActionListener;
 import org.opensearch.action.NoShardAvailableActionException;
-import org.opensearch.action.ShardOperationFailedException;
 import org.opensearch.action.support.TransportActions;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.routing.FailAwareWeightedRouting;
 import org.opensearch.cluster.routing.GroupShardsIterator;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.SetOnce;
+import org.opensearch.common.lease.Releasable;
+import org.opensearch.common.lease.Releasables;
 import org.opensearch.common.util.concurrent.AbstractRunnable;
 import org.opensearch.common.util.concurrent.AtomicArray;
-import org.opensearch.core.common.lease.Releasable;
-import org.opensearch.core.common.lease.Releasables;
-import org.opensearch.index.shard.ShardId;
+import org.opensearch.core.action.ActionListener;
+import org.opensearch.core.action.ShardOperationFailedException;
+import org.opensearch.core.index.shard.ShardId;
 import org.opensearch.search.SearchPhaseResult;
 import org.opensearch.search.SearchShardTarget;
 import org.opensearch.search.internal.AliasFilter;
 import org.opensearch.search.internal.InternalSearchResponse;
 import org.opensearch.search.internal.SearchContext;
 import org.opensearch.search.internal.ShardSearchRequest;
+import org.opensearch.search.pipeline.PipelinedRequest;
 import org.opensearch.transport.Transport;
 
 import java.util.ArrayDeque;
@@ -64,6 +65,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -106,7 +108,6 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     private final AtomicInteger skippedOps = new AtomicInteger();
     private final TransportSearchAction.SearchTimeProvider timeProvider;
     private final SearchResponse.Clusters clusters;
-
     protected final GroupShardsIterator<SearchShardIterator> toSkipShardsIts;
     protected final GroupShardsIterator<SearchShardIterator> shardsIts;
     private final int expectedTotalOps;
@@ -115,7 +116,11 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     private final Map<String, PendingExecutions> pendingExecutionsPerNode = new ConcurrentHashMap<>();
     private final boolean throttleConcurrentRequests;
 
+    private SearchPhase currentPhase;
+
     private final List<Releasable> releasables = new ArrayList<>();
+
+    private Optional<SearchRequestOperationsListener> searchRequestOperationsListener;
 
     AbstractSearchAsyncAction(
         String name,
@@ -134,7 +139,8 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         SearchTask task,
         SearchPhaseResults<Result> resultConsumer,
         int maxConcurrentRequestsPerNode,
-        SearchResponse.Clusters clusters
+        SearchResponse.Clusters clusters,
+        SearchRequestOperationsListener searchRequestOperationsListener
     ) {
         super(name);
         final List<SearchShardIterator> toSkipIterators = new ArrayList<>();
@@ -170,6 +176,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         this.indexRoutings = indexRoutings;
         this.results = resultConsumer;
         this.clusters = clusters;
+        this.searchRequestOperationsListener = Optional.ofNullable(searchRequestOperationsListener);
     }
 
     @Override
@@ -367,9 +374,10 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
             final ShardOperationFailedException[] shardSearchFailures = ExceptionsHelper.groupBy(buildShardFailures());
             Throwable cause = shardSearchFailures.length == 0
                 ? null
-                : BaseOpenSearchException.guessRootCauses(shardSearchFailures[0].getCause())[0];
+                : OpenSearchException.guessRootCauses(shardSearchFailures[0].getCause())[0];
             logger.debug(() -> new ParameterizedMessage("All shards failed for phase: [{}]", getName()), cause);
             onPhaseFailure(currentPhase, "all shards failed", cause);
+
         } else {
             Boolean allowPartialResults = request.allowPartialSearchResults();
             assert allowPartialResults != null : "SearchRequest missing setting for allowPartialSearchResults";
@@ -381,7 +389,7 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
                     if (logger.isDebugEnabled()) {
                         int numShardFailures = shardSearchFailures.length;
                         shardSearchFailures = ExceptionsHelper.groupBy(shardSearchFailures);
-                        Throwable cause = BaseOpenSearchException.guessRootCauses(shardSearchFailures[0].getCause())[0];
+                        Throwable cause = OpenSearchException.guessRootCauses(shardSearchFailures[0].getCause())[0];
                         logger.debug(
                             () -> new ParameterizedMessage("{} shards failed for phase: [{}]", numShardFailures, getName()),
                             cause
@@ -418,13 +426,24 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
                     clusterState.version()
                 );
             }
+            onPhaseEnd();
             executePhase(nextPhase);
         }
     }
 
+    private void onPhaseEnd() {
+        this.searchRequestOperationsListener.ifPresent(searchRequestOperations -> { searchRequestOperations.onPhaseEnd(this); });
+    }
+
+    private void onPhaseStart(SearchPhase phase) {
+        setCurrentPhase(phase);
+        this.searchRequestOperationsListener.ifPresent(searchRequestOperations -> { searchRequestOperations.onPhaseStart(this); });
+    }
+
     private void executePhase(SearchPhase phase) {
         try {
-            phase.run();
+            onPhaseStart(phase);
+            phase.recordAndRun();
         } catch (Exception e) {
             if (logger.isDebugEnabled()) {
                 logger.debug(new ParameterizedMessage("Failed to execute [{}] while moving to [{}] phase", request, phase.getName()), e);
@@ -454,15 +473,27 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
             .findNext(shardIt, clusterState, e, () -> totalOps.incrementAndGet());
 
         final boolean lastShard = nextShard == null;
-        logger.debug(
-            () -> new ParameterizedMessage(
-                "{}: Failed to execute [{}] lastShard [{}]",
-                shard != null ? shard : shardIt.shardId(),
-                request,
-                lastShard
-            ),
-            e
-        );
+        if (logger.isTraceEnabled()) {
+            logger.trace(
+                () -> new ParameterizedMessage(
+                    "{}: Failed to execute [{}] lastShard [{}]",
+                    shard != null ? shard : shardIt.shardId(),
+                    request,
+                    lastShard
+                ),
+                e
+            );
+        } else {
+            // Log the message without an exception.
+            logger.debug(
+                new ParameterizedMessage(
+                    "{}: Failed to execute [{}] lastShard [{}]",
+                    shard != null ? shard : shardIt.shardId(),
+                    request,
+                    lastShard
+                )
+            );
+        }
         if (lastShard) {
             onShardGroupFailure(shardIndex, shard, e);
         }
@@ -590,6 +621,14 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
         }
     }
 
+    public SearchPhase getCurrentPhase() {
+        return currentPhase;
+    }
+
+    private void setCurrentPhase(SearchPhase phase) {
+        currentPhase = phase;
+    }
+
     @Override
     public final int getNumShards() {
         return results.getNumShards();
@@ -657,10 +696,13 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
             }
             listener.onResponse(buildSearchResponse(internalSearchResponse, failures, scrollId, searchContextId));
         }
+        onPhaseEnd();
+        setCurrentPhase(null);
     }
 
     @Override
     public final void onPhaseFailure(SearchPhase phase, String msg, Throwable cause) {
+        this.searchRequestOperationsListener.ifPresent(searchRequestOperations -> searchRequestOperations.onPhaseFailure(this));
         raisePhaseFailure(new SearchPhaseExecutionException(phase.getName(), msg, cause, buildShardFailures()));
     }
 
@@ -696,7 +738,11 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
      * @see #onShardResult(SearchPhaseResult, SearchShardIterator)
      */
     final void onPhaseDone() {  // as a tribute to @kimchy aka. finishHim()
-        executeNextPhase(this, getNextPhase(results, this));
+        final SearchPhase nextPhase = getNextPhase(results, this);
+        if (request instanceof PipelinedRequest && nextPhase != null) {
+            ((PipelinedRequest) request).transformSearchPhaseResults(results, this, this.getName(), nextPhase.getName());
+        }
+        executeNextPhase(this, nextPhase);
     }
 
     @Override
