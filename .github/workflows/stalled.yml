@@ -9,14 +9,10 @@ jobs:
     if: github.repository == 'Poojita-Raj/OpenSearch'
     runs-on: ubuntu-latest
     steps:
-      - name: GitHub App token
-        id: github_app_token
-        uses: tibdex/github-app-token@v2.1.0
       - name: Stale PRs
         uses: actions/stale@v8
         with:
-          repo-token: ${{ steps.github_app_token.outputs.token }}
           stale-pr-label: 'stalled'
-          stale-pr-message: 'This PR is stalled because it has been open for 30 days with no activity. Remove stalled label or comment or this will be closed in 7 days.'
+          stale-pr-message: 'This PR is stalled because it has been open for 30 days with no activity.'
           days-before-pr-stale: 30
           days-before-issue-stale: -1
