@@ -79,6 +79,7 @@ import org.opensearch.action.admin.indices.mapping.put.TransportAutoPutMappingAc
 import org.opensearch.action.admin.indices.mapping.put.TransportPutMappingAction;
 import org.opensearch.action.admin.indices.shards.IndicesShardStoresAction;
 import org.opensearch.action.admin.indices.shards.TransportIndicesShardStoresAction;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.bulk.BulkAction;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.bulk.BulkResponse;
@@ -2141,7 +2142,8 @@ public class SnapshotResiliencyTests extends OpenSearchTestCase {
                     ),
                     RetentionLeaseSyncer.EMPTY,
                     SegmentReplicationCheckpointPublisher.EMPTY,
-                    mock(RemoteStoreStatsTrackerFactory.class)
+                    mock(RemoteStoreStatsTrackerFactory.class),
+                    SegmentInfosVersionChecker.VersionChecker.EMPTY
                 );
 
                 final SystemIndices systemIndices = new SystemIndices(emptyMap());

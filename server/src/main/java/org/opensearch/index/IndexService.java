@@ -40,6 +40,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.Accountable;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
@@ -455,7 +456,8 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
         final Consumer<ShardId> globalCheckpointSyncer,
         final RetentionLeaseSyncer retentionLeaseSyncer,
         final SegmentReplicationCheckpointPublisher checkpointPublisher,
-        final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory
+        final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory,
+        final SegmentInfosVersionChecker versionChecker
     ) throws IOException {
         Objects.requireNonNull(retentionLeaseSyncer);
         /*
@@ -528,7 +530,8 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
                 remoteStoreStatsTrackerFactory,
                 clusterRemoteTranslogBufferIntervalSupplier,
                 nodeEnv.nodeId(),
-                recoverySettings
+                recoverySettings,
+                this.indexSettings.isSegRepEnabled() ? versionChecker : null
             );
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
             eventListener.afterIndexShardCreated(indexShard);

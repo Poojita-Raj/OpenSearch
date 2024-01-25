@@ -61,6 +61,7 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.action.ActionRunnable;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.admin.indices.upgrade.post.UpgradeRequest;
 import org.opensearch.action.support.replication.PendingReplicationActions;
 import org.opensearch.action.support.replication.ReplicationResponse;
@@ -275,6 +276,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     private final ReplicationTracker replicationTracker;
     private final SegmentReplicationCheckpointPublisher checkpointPublisher;
 
+    private final SegmentInfosVersionChecker segmentInfosVersionChecker;
+
     protected volatile ShardRouting shardRouting;
     protected volatile IndexShardState state;
     // ensure happens-before relation between addRefreshListener() and postRecovery()
@@ -374,7 +377,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory,
         final Supplier<TimeValue> clusterRemoteTranslogBufferIntervalSupplier,
         final String nodeId,
-        final RecoverySettings recoverySettings
+        final RecoverySettings recoverySettings,
+        @Nullable final SegmentInfosVersionChecker segmentInfosVersionChecker
     ) throws IOException {
         super(shardRouting.shardId(), indexSettings);
         assert shardRouting.initializing();
@@ -464,6 +468,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         this.useRetentionLeasesInPeerRecovery = replicationTracker.hasAllPeerRecoveryRetentionLeases();
         this.refreshPendingLocationListener = new RefreshPendingLocationListener();
         this.checkpointPublisher = checkpointPublisher;
+        this.segmentInfosVersionChecker = segmentInfosVersionChecker;
         this.remoteStore = remoteStore;
         this.translogFactorySupplier = translogFactorySupplier;
         this.isTimeSeriesIndex = (mapperService == null || mapperService.documentMapper() == null)
@@ -2735,6 +2740,20 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         boolean success = false;
         try {
             for (IndexShard shard : localShards) {
+                if (indexSettings.isSegRepEnabled()) {
+                    if (shard.shardRouting.primary()) {
+                        continue;
+                    }
+                    if (segmentInfosVersionChecker.checkSegmentInfosVersionUpdated(shard) == false) {
+                        throw new IllegalStateException(
+                            "Source shard ["
+                                + shard.shardId
+                                + "] is not up to date with its primary. Can't recover shard ["
+                                + shardId()
+                                + "]"
+                        );
+                    }
+                }
                 snapshots.add(new LocalShardSnapshot(shard));
             }
             // we are the first primary, recover from the gateway

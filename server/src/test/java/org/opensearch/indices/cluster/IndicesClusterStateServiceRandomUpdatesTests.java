@@ -40,6 +40,7 @@ import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.open.OpenIndexRequest;
 import org.opensearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.support.ActiveShardCount;
 import org.opensearch.action.support.replication.ClusterStateCreationUtils;
 import org.opensearch.cluster.ClusterChangedEvent;
@@ -584,7 +585,8 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
             primaryReplicaSyncer,
             s -> {},
             RetentionLeaseSyncer.EMPTY,
-            null
+            null,
+            SegmentInfosVersionChecker.VersionChecker.EMPTY
         );
     }
 

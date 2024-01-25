@@ -40,6 +40,7 @@ import org.apache.lucene.store.IndexInput;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.Version;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.action.support.replication.TransportReplicationAction;
@@ -534,13 +535,18 @@ public abstract class IndexShardTestCase extends OpenSearchTestCase {
             indexEventListener,
             SegmentReplicationCheckpointPublisher.EMPTY,
             remotePath,
+            SegmentInfosVersionChecker.VersionChecker.EMPTY,
             listeners
         );
     }
 
-    protected IndexShard newShard(boolean primary, SegmentReplicationCheckpointPublisher checkpointPublisher) throws IOException {
+    protected IndexShard newShard(
+        boolean primary,
+        SegmentReplicationCheckpointPublisher checkpointPublisher,
+        SegmentInfosVersionChecker versionChecker
+    ) throws IOException {
         final Settings settings = Settings.builder().put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT).build();
-        return newShard(primary, checkpointPublisher, settings);
+        return newShard(primary, checkpointPublisher, versionChecker, settings);
     }
 
     /**
@@ -548,8 +554,12 @@ public abstract class IndexShardTestCase extends OpenSearchTestCase {
      * current node id the shard is assigned to.
      * @param checkpointPublisher               Segment Replication Checkpoint Publisher to publish checkpoint
      */
-    protected IndexShard newShard(boolean primary, SegmentReplicationCheckpointPublisher checkpointPublisher, Settings settings)
-        throws IOException {
+    protected IndexShard newShard(
+        boolean primary,
+        SegmentReplicationCheckpointPublisher checkpointPublisher,
+        SegmentInfosVersionChecker versionChecker,
+        Settings settings
+    ) throws IOException {
         final ShardId shardId = new ShardId("index", "_na_", 0);
         final ShardRouting shardRouting = TestShardRouting.newShardRouting(
             shardId,
@@ -586,7 +596,8 @@ public abstract class IndexShardTestCase extends OpenSearchTestCase {
             RetentionLeaseSyncer.EMPTY,
             EMPTY_EVENT_LISTENER,
             checkpointPublisher,
-            null
+            null,
+            versionChecker
         );
     }
 
@@ -615,6 +626,7 @@ public abstract class IndexShardTestCase extends OpenSearchTestCase {
         IndexEventListener indexEventListener,
         SegmentReplicationCheckpointPublisher checkpointPublisher,
         @Nullable Path remotePath,
+        SegmentInfosVersionChecker versionChecker,
         IndexingOperationListener... listeners
     ) throws IOException {
         final Settings nodeSettings = Settings.builder().put("node.name", routing.currentNodeId()).build();
@@ -703,7 +715,8 @@ public abstract class IndexShardTestCase extends OpenSearchTestCase {
                 remoteStoreStatsTrackerFactory,
                 () -> IndexSettings.DEFAULT_REMOTE_TRANSLOG_BUFFER_INTERVAL,
                 "dummy-node",
-                DefaultRecoverySettings.INSTANCE
+                DefaultRecoverySettings.INSTANCE,
+                versionChecker
             );
             indexShard.addShardFailureCallback(DEFAULT_SHARD_FAILURE_HANDLER);
             if (remoteStoreStatsTrackerFactory != null) {

@@ -32,6 +32,7 @@
 
 package org.opensearch.indices.cluster;
 
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.node.DiscoveryNode;
@@ -264,7 +265,8 @@ public abstract class AbstractIndicesClusterStateServiceTestCase extends OpenSea
             final RetentionLeaseSyncer retentionLeaseSyncer,
             final DiscoveryNode targetNode,
             final DiscoveryNode sourceNode,
-            final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory
+            final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory,
+            final SegmentInfosVersionChecker versionChecker
         ) throws IOException {
             failRandomly();
             RecoveryState recoveryState = new RecoveryState(shardRouting, targetNode, sourceNode);

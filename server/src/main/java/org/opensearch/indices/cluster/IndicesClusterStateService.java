@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.opensearch.ResourceAlreadyExistsException;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.ClusterStateApplier;
@@ -149,6 +150,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
 
     private final SegmentReplicationCheckpointPublisher checkpointPublisher;
 
+    private final SegmentInfosVersionChecker versionChecker;
+
     private final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory;
 
     @Inject
@@ -170,7 +173,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         final GlobalCheckpointSyncAction globalCheckpointSyncAction,
         final RetentionLeaseSyncer retentionLeaseSyncer,
         final SegmentReplicationCheckpointPublisher checkpointPublisher,
-        final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory
+        final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory,
+        final SegmentInfosVersionChecker versionChecker
     ) {
         this(
             settings,
@@ -190,7 +194,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             primaryReplicaSyncer,
             globalCheckpointSyncAction::updateGlobalCheckpointForShard,
             retentionLeaseSyncer,
-            remoteStoreStatsTrackerFactory
+            remoteStoreStatsTrackerFactory,
+            versionChecker
         );
     }
 
@@ -213,7 +218,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         final PrimaryReplicaSyncer primaryReplicaSyncer,
         final Consumer<ShardId> globalCheckpointSyncer,
         final RetentionLeaseSyncer retentionLeaseSyncer,
-        final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory
+        final RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory,
+        final SegmentInfosVersionChecker versionChecker
     ) {
         this.settings = settings;
         this.checkpointPublisher = checkpointPublisher;
@@ -238,6 +244,7 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
         this.retentionLeaseSyncer = Objects.requireNonNull(retentionLeaseSyncer);
         this.sendRefreshMapping = settings.getAsBoolean("indices.cluster.send_refresh_mapping", true);
         this.remoteStoreStatsTrackerFactory = remoteStoreStatsTrackerFactory;
+        this.versionChecker = versionChecker;
     }
 
     @Override
@@ -680,7 +687,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
                 retentionLeaseSyncer,
                 nodes.getLocalNode(),
                 sourceNode,
-                remoteStoreStatsTrackerFactory
+                remoteStoreStatsTrackerFactory,
+                versionChecker
             );
         } catch (Exception e) {
             failAndRemoveShard(shardRouting, true, "failed to create shard", e, state);
@@ -1040,7 +1048,8 @@ public class IndicesClusterStateService extends AbstractLifecycleComponent imple
             RetentionLeaseSyncer retentionLeaseSyncer,
             DiscoveryNode targetNode,
             @Nullable DiscoveryNode sourceNode,
-            RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory
+            RemoteStoreStatsTrackerFactory remoteStoreStatsTrackerFactory,
+            SegmentInfosVersionChecker segmentInfosVersionChecker
         ) throws IOException;
 
         /**

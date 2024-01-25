@@ -14,6 +14,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.PlainActionFuture;
 import org.opensearch.cluster.ClusterChangedEvent;
@@ -452,7 +453,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
      */
     public void testPublishCheckpointOnPrimaryMode() throws IOException, InterruptedException {
         final SegmentReplicationCheckpointPublisher mock = mock(SegmentReplicationCheckpointPublisher.class);
-        IndexShard shard = newStartedShard(p -> newShard(false, mock, settings), false);
+        IndexShard shard = newStartedShard(p -> newShard(false, mock, SegmentInfosVersionChecker.VersionChecker.EMPTY, settings), false);
 
         final ShardRouting shardRouting = shard.routingEntry();
         promoteReplica(
@@ -484,7 +485,7 @@ public class SegmentReplicationIndexShardTests extends OpenSearchIndexLevelRepli
     public void testPublishCheckpointOnPrimaryMode_segrep_off() throws IOException, InterruptedException {
         final SegmentReplicationCheckpointPublisher mock = mock(SegmentReplicationCheckpointPublisher.class);
         final Settings settings = Settings.builder().put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.DOCUMENT).build();
-        IndexShard shard = newStartedShard(p -> newShard(false, mock, settings), false);
+        IndexShard shard = newStartedShard(p -> newShard(false, mock, SegmentInfosVersionChecker.VersionChecker.EMPTY, settings), false);
 
         final ShardRouting shardRouting = shard.routingEntry();
         promoteReplica(

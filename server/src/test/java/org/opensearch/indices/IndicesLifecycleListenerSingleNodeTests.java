@@ -32,6 +32,7 @@
 package org.opensearch.indices;
 
 import org.opensearch.Version;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.node.DiscoveryNode;
 import org.opensearch.cluster.routing.RecoverySource;
@@ -154,7 +155,8 @@ public class IndicesLifecycleListenerSingleNodeTests extends OpenSearchSingleNod
                 s -> {},
                 RetentionLeaseSyncer.EMPTY,
                 SegmentReplicationCheckpointPublisher.EMPTY,
-                null
+                null,
+                SegmentInfosVersionChecker.VersionChecker.EMPTY
             );
             IndexShardTestCase.updateRoutingEntry(shard, newRouting);
             assertEquals(5, counter.get());

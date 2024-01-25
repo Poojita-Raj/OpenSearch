@@ -704,4 +704,10 @@ public class SegmentReplicationTargetService extends AbstractLifecycleComponent 
         }
     }
 
+    public boolean checkSegmentInfosVersionUpdated(IndexShard indexShard) {
+        long replicaVersion = indexShard.getSegmentInfosSnapshot().get().getVersion();
+        long primaryReceivedVersion = latestReceivedCheckpoint.get(indexShard.shardId()).getSegmentInfosVersion();
+        return replicaVersion == primaryReceivedVersion;
+    }
+
 }

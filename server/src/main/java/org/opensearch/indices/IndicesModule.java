@@ -36,6 +36,7 @@ import org.opensearch.action.admin.indices.rollover.Condition;
 import org.opensearch.action.admin.indices.rollover.MaxAgeCondition;
 import org.opensearch.action.admin.indices.rollover.MaxDocsCondition;
 import org.opensearch.action.admin.indices.rollover.MaxSizeCondition;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.resync.TransportResyncReplicationAction;
 import org.opensearch.common.inject.AbstractModule;
 import org.opensearch.core.ParseField;
@@ -288,6 +289,7 @@ public class IndicesModule extends AbstractModule {
         bind(RetentionLeaseBackgroundSyncAction.class).asEagerSingleton();
         bind(RetentionLeaseSyncer.class).asEagerSingleton();
         bind(SegmentReplicationCheckpointPublisher.class).asEagerSingleton();
+        bind(SegmentInfosVersionChecker.class).asEagerSingleton();
         bind(SegmentReplicationPressureService.class).asEagerSingleton();
         bind(RemoteStorePressureService.class).asEagerSingleton();
     }

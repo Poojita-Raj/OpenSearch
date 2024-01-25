@@ -35,6 +35,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.Version;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -713,7 +714,8 @@ public class IndexShardIT extends OpenSearchSingleNodeTestCase {
             null,
             () -> IndexSettings.DEFAULT_REMOTE_TRANSLOG_BUFFER_INTERVAL,
             nodeId,
-            null
+            null,
+            SegmentInfosVersionChecker.VersionChecker.EMPTY
         );
     }
 

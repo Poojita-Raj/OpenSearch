@@ -53,6 +53,7 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.Version;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.opensearch.action.admin.indices.shrink.SegmentInfosVersionChecker;
 import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.action.admin.indices.stats.CommonStatsFlags;
 import org.opensearch.action.admin.indices.stats.ShardStats;
@@ -3785,7 +3786,7 @@ public class IndexShardTests extends IndexShardTestCase {
      */
     public void testCheckpointRefreshListener() throws IOException {
         final SegmentReplicationCheckpointPublisher mock = mock(SegmentReplicationCheckpointPublisher.class);
-        IndexShard shard = newStartedShard(p -> newShard(true, mock), true);
+        IndexShard shard = newStartedShard(p -> newShard(true, mock, SegmentInfosVersionChecker.VersionChecker.EMPTY), true);
         List<ReferenceManager.RefreshListener> refreshListeners = shard.getEngine().config().getInternalRefreshListener();
         assertTrue(refreshListeners.stream().anyMatch(e -> e instanceof CheckpointRefreshListener));
         closeShards(shard);
@@ -3796,7 +3797,7 @@ public class IndexShardTests extends IndexShardTestCase {
      */
     public void testCheckpointRefreshListenerWithNull() throws IOException {
         final SegmentReplicationCheckpointPublisher publisher = null;
-        IndexShard shard = newStartedShard(p -> newShard(true, publisher), true);
+        IndexShard shard = newStartedShard(p -> newShard(true, publisher, SegmentInfosVersionChecker.VersionChecker.EMPTY), true);
         List<ReferenceManager.RefreshListener> refreshListeners = shard.getEngine().config().getInternalRefreshListener();
         assertFalse(refreshListeners.stream().anyMatch(e -> e instanceof CheckpointRefreshListener));
         closeShards(shard);
