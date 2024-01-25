@@ -27,6 +27,7 @@ public class SegmentInfosVersionChecker {
     }
 
     public boolean checkSegmentInfosVersionUpdated(IndexShard indexShard) {
+        System.out.print("version checker called");
         return this.versionChecker.checkSegmentInfosVersionUpdated(indexShard);
     }
 

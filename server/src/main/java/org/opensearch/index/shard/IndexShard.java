@@ -2740,11 +2740,14 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         boolean success = false;
         try {
             for (IndexShard shard : localShards) {
-                if (indexSettings.isSegRepEnabled()) {
+                if (shard.indexSettings.isSegRepEnabled()) {
+                    System.out.println("here1");
                     if (shard.shardRouting.primary()) {
+                        System.out.println("here2");
                         continue;
                     }
                     if (segmentInfosVersionChecker.checkSegmentInfosVersionUpdated(shard) == false) {
+                        System.out.println("here3");
                         throw new IllegalStateException(
                             "Source shard ["
                                 + shard.shardId
@@ -2754,6 +2757,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         );
                     }
                 }
+                System.out.println("here4");
                 snapshots.add(new LocalShardSnapshot(shard));
             }
             // we are the first primary, recover from the gateway
