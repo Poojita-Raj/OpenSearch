@@ -35,14 +35,7 @@ package org.opensearch.index.shard;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.codecs.CodecUtil;
-import org.apache.lucene.index.CheckIndex;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.FilterDirectoryReader;
-import org.apache.lucene.index.IndexCommit;
-import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.LeafReader;
-import org.apache.lucene.index.SegmentInfos;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.ReferenceManager;
@@ -56,6 +49,7 @@ import org.apache.lucene.store.FilterDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.util.ThreadInterruptedException;
+import org.apache.lucene.util.Version;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.ActionRunnable;
@@ -168,14 +162,7 @@ import org.opensearch.index.store.Store.MetadataSnapshot;
 import org.opensearch.index.store.StoreFileMetadata;
 import org.opensearch.index.store.StoreStats;
 import org.opensearch.index.store.remote.metadata.RemoteSegmentMetadata;
-import org.opensearch.index.translog.RemoteBlobStoreInternalTranslogFactory;
-import org.opensearch.index.translog.RemoteFsTranslog;
-import org.opensearch.index.translog.RemoteTranslogStats;
-import org.opensearch.index.translog.Translog;
-import org.opensearch.index.translog.TranslogConfig;
-import org.opensearch.index.translog.TranslogFactory;
-import org.opensearch.index.translog.TranslogRecoveryRunner;
-import org.opensearch.index.translog.TranslogStats;
+import org.opensearch.index.translog.*;
 import org.opensearch.index.warmer.ShardIndexWarmerService;
 import org.opensearch.index.warmer.WarmerStats;
 import org.opensearch.indices.IndexingMemoryController;
@@ -542,7 +529,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * Returns the primary term the index shard is supposed to be on. In case of primary promotion or when a replica learns about
      * a new term due to a new primary, the term that's exposed here will not be the term that the shard internally uses to assign
      * to operations. The shard will auto-correct its internal operation term, but this might take time.
-     * See {@link org.opensearch.cluster.metadata.IndexMetadata#primaryTerm(int)}
+     * See {@link IndexMetadata#primaryTerm(int)}
      */
     public long getPendingPrimaryTerm() {
         return this.pendingPrimaryTerm;
@@ -1326,7 +1313,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         return result;
     }
 
-    public Engine.GetResult get(Engine.Get get) {
+    public GetResult get(Engine.Get get) {
         readAllowed();
         DocumentMapper mapper = mapperService.documentMapper();
         if (mapper == null) {
@@ -1498,7 +1485,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     /**
      * checks and removes translog files that no longer need to be retained. See
-     * {@link org.opensearch.index.translog.TranslogDeletionPolicy} for details
+     * {@link TranslogDeletionPolicy} for details
      */
     public void trimTranslog() {
         if (isRemoteTranslogEnabled()) {
@@ -1536,12 +1523,12 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     /**
      * Upgrades the shard to the current version of Lucene and returns the minimum segment version
      */
-    public org.apache.lucene.util.Version upgrade(UpgradeRequest upgrade) throws IOException {
+    public Version upgrade(UpgradeRequest upgrade) throws IOException {
         verifyActive();
         if (logger.isTraceEnabled()) {
             logger.trace("upgrade with {}", upgrade);
         }
-        org.apache.lucene.util.Version previousVersion = minimumCompatibleVersion();
+        Version previousVersion = minimumCompatibleVersion();
         // we just want to upgrade the segments, not actually forge merge to a single segment
         final Engine engine = getEngine();
         engine.forceMerge(
@@ -1552,7 +1539,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             upgrade.upgradeOnlyAncientSegments(),
             null
         );
-        org.apache.lucene.util.Version version = minimumCompatibleVersion();
+        Version version = minimumCompatibleVersion();
         if (logger.isTraceEnabled()) {
             logger.trace("upgraded segments for {} from version {} to version {}", shardId, previousVersion, version);
         }
@@ -1560,8 +1547,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         return version;
     }
 
-    public org.apache.lucene.util.Version minimumCompatibleVersion() {
-        org.apache.lucene.util.Version luceneVersion = null;
+    public Version minimumCompatibleVersion() {
+        Version luceneVersion = null;
         for (Segment segment : getEngine().segments(false)) {
             if (luceneVersion == null || luceneVersion.onOrAfter(segment.getVersion())) {
                 luceneVersion = segment.getVersion();
@@ -1784,19 +1771,19 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     }
 
     /**
-     * gets a {@link Store.MetadataSnapshot} for the current directory. This method is safe to call in all lifecycle of the index shard,
+     * gets a {@link MetadataSnapshot} for the current directory. This method is safe to call in all lifecycle of the index shard,
      * without having to worry about the current state of the engine and concurrent flushes.
      *
      * @throws org.apache.lucene.index.IndexNotFoundException     if no index is found in the current directory
-     * @throws org.apache.lucene.index.CorruptIndexException      if the lucene index is corrupted. This can be caused by a checksum
+     * @throws CorruptIndexException      if the lucene index is corrupted. This can be caused by a checksum
      *                                                            mismatch or an unexpected exception when opening the index reading the
      *                                                            segments file.
-     * @throws org.apache.lucene.index.IndexFormatTooOldException if the lucene index is too old to be opened.
-     * @throws org.apache.lucene.index.IndexFormatTooNewException if the lucene index is too new to be opened.
-     * @throws java.io.FileNotFoundException                      if one or more files referenced by a commit are not present.
-     * @throws java.nio.file.NoSuchFileException                  if one or more files referenced by a commit are not present.
+     * @throws IndexFormatTooOldException if the lucene index is too old to be opened.
+     * @throws IndexFormatTooNewException if the lucene index is too new to be opened.
+     * @throws FileNotFoundException                      if one or more files referenced by a commit are not present.
+     * @throws NoSuchFileException                  if one or more files referenced by a commit are not present.
      */
-    public Store.MetadataSnapshot snapshotStoreMetadata() throws IOException {
+    public MetadataSnapshot snapshotStoreMetadata() throws IOException {
         assert Thread.holdsLock(mutex) == false : "snapshotting store metadata under mutex";
         GatedCloseable<IndexCommit> wrappedIndexCommit = null;
         store.incRef();
@@ -2464,7 +2451,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     // from remote translog at the time of failover.
                     final SegmentInfos lastCommittedSegmentInfos = store().readLastCommittedSegmentsInfo();
                     final String translogUUID = lastCommittedSegmentInfos.userData.get(TRANSLOG_UUID_KEY);
-                    final long checkpoint = Long.parseLong(lastCommittedSegmentInfos.userData.get(SequenceNumbers.LOCAL_CHECKPOINT_KEY));
+                    final long checkpoint = Long.parseLong(lastCommittedSegmentInfos.userData.get(LOCAL_CHECKPOINT_KEY));
                     Translog.createEmptyTranslog(
                         shardPath().resolveTranslog(),
                         shardId(),
@@ -2497,7 +2484,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
 
     private boolean assertSequenceNumbersInCommit() throws IOException {
         final Map<String, String> userData = fetchUserData();
-        assert userData.containsKey(SequenceNumbers.LOCAL_CHECKPOINT_KEY) : "commit point doesn't contains a local checkpoint";
+        assert userData.containsKey(LOCAL_CHECKPOINT_KEY) : "commit point doesn't contains a local checkpoint";
         assert userData.containsKey(MAX_SEQ_NO) : "commit point doesn't contains a maximum sequence number";
         assert userData.containsKey(Engine.HISTORY_UUID_KEY) : "commit point doesn't contains a history uuid";
         assert userData.get(Engine.HISTORY_UUID_KEY).equals(getHistoryUUID()) : "commit point history uuid ["
@@ -2730,8 +2717,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void recoverFromLocalShards(
         Consumer<MappingMetadata> mappingUpdateConsumer,
         List<IndexShard> localShards,
+        long primaryShardSegmentInfosVersion,
         ActionListener<Boolean> listener
     ) throws IOException {
+        logger.info("Recover from local shards");
+        logger.info(primaryShardSegmentInfosVersion);
         assert shardRouting.primary() : "recover from local shards only makes sense if the shard is a primary shard";
         assert recoveryState.getRecoverySource().getType() == RecoverySource.Type.LOCAL_SHARDS : "invalid recovery type: "
             + recoveryState.getRecoverySource();
@@ -2746,7 +2736,8 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         System.out.println("here2");
                         continue;
                     }
-                    if (segmentInfosVersionChecker.checkSegmentInfosVersionUpdated(shard) == false) {
+                    System.out.println(shard.getSegmentInfosSnapshot().get().getVersion());
+                    if (primaryShardSegmentInfosVersion != shard.getSegmentInfosSnapshot().get().getVersion()) {
                         System.out.println("here3");
                         throw new IllegalStateException(
                             "Source shard ["
@@ -3672,6 +3663,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 final IndexService sourceIndexService = indicesService.indexService(resizeSourceIndex);
                 final Set<ShardId> requiredShards;
                 final int numShards;
+                long primaryShardSegInfosVersion = 0;
                 if (sourceIndexService != null) {
                     requiredShards = IndexMetadata.selectRecoverFromShards(
                         shardId().id(),
@@ -3681,16 +3673,21 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     for (IndexShard shard : sourceIndexService) {
                         if (shard.state() == IndexShardState.STARTED && requiredShards.contains(shard.shardId())) {
                             startedShards.add(shard);
+                            if(shard.routingEntry().primary()) {
+                                primaryShardSegInfosVersion = shard.getSegmentInfosSnapshot().get().getVersion();
+                            }
                         }
                     }
                     numShards = requiredShards.size();
                 } else {
                     numShards = -1;
                     requiredShards = Collections.emptySet();
+                    primaryShardSegInfosVersion = Long.MIN_VALUE;
                 }
 
                 if (numShards == startedShards.size()) {
                     assert requiredShards.isEmpty() == false;
+                    long finalPrimaryShardSegInfosVersion = primaryShardSegInfosVersion;
                     executeRecovery(
                         "from local shards",
                         recoveryState,
@@ -3698,6 +3695,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         l -> recoverFromLocalShards(
                             mappingUpdateConsumer,
                             startedShards.stream().filter((s) -> requiredShards.contains(s.shardId())).collect(Collectors.toList()),
+                            finalPrimaryShardSegInfosVersion,
                             l
                         )
                     );
