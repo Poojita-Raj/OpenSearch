@@ -2717,11 +2717,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void recoverFromLocalShards(
         Consumer<MappingMetadata> mappingUpdateConsumer,
         List<IndexShard> localShards,
-        long primaryShardSegmentInfosVersion,
         ActionListener<Boolean> listener
     ) throws IOException {
         logger.info("Recover from local shards");
-        logger.info(primaryShardSegmentInfosVersion);
         assert shardRouting.primary() : "recover from local shards only makes sense if the shard is a primary shard";
         assert recoveryState.getRecoverySource().getType() == RecoverySource.Type.LOCAL_SHARDS : "invalid recovery type: "
             + recoveryState.getRecoverySource();
@@ -2737,7 +2735,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         continue;
                     }
                     System.out.println(shard.getSegmentInfosSnapshot().get().getVersion());
-                    if (primaryShardSegmentInfosVersion != shard.getSegmentInfosSnapshot().get().getVersion()) {
+                    if (segmentInfosVersionChecker.checkSegmentInfosVersionUpdated(shard) == false) {
                         System.out.println("here3");
                         throw new IllegalStateException(
                             "Source shard ["
@@ -2756,6 +2754,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             assert shardRouting.primary() : "recover from local shards only makes sense if the shard is a primary shard";
             StoreRecovery storeRecovery = new StoreRecovery(shardId, logger);
             storeRecovery.recoverFromLocalShards(mappingUpdateConsumer, this, snapshots, recoveryListener);
+            System.out.println("all good");
             success = true;
         } finally {
             if (success == false) {
@@ -3663,7 +3662,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 final IndexService sourceIndexService = indicesService.indexService(resizeSourceIndex);
                 final Set<ShardId> requiredShards;
                 final int numShards;
-                long primaryShardSegInfosVersion = 0;
                 if (sourceIndexService != null) {
                     requiredShards = IndexMetadata.selectRecoverFromShards(
                         shardId().id(),
@@ -3673,21 +3671,16 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     for (IndexShard shard : sourceIndexService) {
                         if (shard.state() == IndexShardState.STARTED && requiredShards.contains(shard.shardId())) {
                             startedShards.add(shard);
-                            if(shard.routingEntry().primary()) {
-                                primaryShardSegInfosVersion = shard.getSegmentInfosSnapshot().get().getVersion();
-                            }
                         }
                     }
                     numShards = requiredShards.size();
                 } else {
                     numShards = -1;
                     requiredShards = Collections.emptySet();
-                    primaryShardSegInfosVersion = Long.MIN_VALUE;
                 }
 
                 if (numShards == startedShards.size()) {
                     assert requiredShards.isEmpty() == false;
-                    long finalPrimaryShardSegInfosVersion = primaryShardSegInfosVersion;
                     executeRecovery(
                         "from local shards",
                         recoveryState,
@@ -3695,7 +3688,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         l -> recoverFromLocalShards(
                             mappingUpdateConsumer,
                             startedShards.stream().filter((s) -> requiredShards.contains(s.shardId())).collect(Collectors.toList()),
-                            finalPrimaryShardSegInfosVersion,
                             l
                         )
                     );

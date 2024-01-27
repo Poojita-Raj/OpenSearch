@@ -14,6 +14,8 @@ import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.index.CorruptIndexException;
 import org.opensearch.ExceptionsHelper;
 import org.opensearch.OpenSearchCorruptionException;
+import org.opensearch.action.admin.indices.shrink.GetSegmentInfosVersionRequest;
+import org.opensearch.action.admin.indices.shrink.GetSegmentInfosVersionResponse;
 import org.opensearch.action.support.ChannelActionListener;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterStateListener;
@@ -55,9 +57,12 @@ import org.opensearch.transport.TransportService;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.opensearch.index.seqno.SequenceNumbers.NO_OPS_PERFORMED;
+import static org.opensearch.indices.replication.SegmentReplicationSourceService.Actions.GET_PRIMARY_SEGINFOS_VERSION;
 import static org.opensearch.indices.replication.SegmentReplicationSourceService.Actions.UPDATE_VISIBLE_CHECKPOINT;
 
 /**
@@ -704,17 +709,80 @@ public class SegmentReplicationTargetService extends AbstractLifecycleComponent 
         }
     }
 
-    public boolean checkSegmentInfosVersionUpdated(IndexShard indexShard) {
+    public boolean checkSegmentInfosVersionUpdated(IndexShard replicaShard) {
         System.out.println("called checkSegInfosVersionUpdated");
-        long replicaVersion = indexShard.getSegmentInfosSnapshot().get().getVersion();
-        System.out.println(replicaVersion);
-        ReplicationCheckpoint receivedCheckpoint = // call to pri
-        if (receivedCheckpoint == null) {
-            return true;
+        long replicaVersion = replicaShard.getSegmentInfosSnapshot().get().getVersion();
+        System.out.println("replica version finally " + replicaVersion);
+        ShardRouting primaryShard = clusterService.state().routingTable().shardRoutingTable(replicaShard.shardId()).primaryShard();
+        final long[] primarySegmentInfosVersion = new long[1];
+        final CountDownLatch receivedInfosLatch = new CountDownLatch(1);
+        final GetSegmentInfosVersionRequest request = new GetSegmentInfosVersionRequest(
+            replicaShard.routingEntry().allocationId().getId(),
+            primaryShard.shardId(),
+            getPrimaryNode(primaryShard)
+        );
+
+        final TransportRequestOptions options = TransportRequestOptions.builder()
+            .withTimeout(recoverySettings.internalActionTimeout())
+            .build();
+        logger.trace(
+            () -> new ParameterizedMessage(
+                "Getting Primary shard {} segment infos version",
+                primaryShard.getId()
+            )
+        );
+        RetryableTransportClient transportClient = new RetryableTransportClient(
+            transportService,
+            getPrimaryNode(primaryShard),
+            recoverySettings.internalActionRetryTimeout(),
+            logger
+        );
+        final ActionListener<GetSegmentInfosVersionResponse> listener = new ActionListener<>() {
+            @Override
+            public void onResponse(GetSegmentInfosVersionResponse response) {
+                primarySegmentInfosVersion[0] = response.getPrimarySegInfosVersion();
+                logger.trace(
+                    () -> new ParameterizedMessage(
+                        "Successfully received primary shard {} segment infos version {}",
+                        primaryShard.shardId(),
+                        response.getPrimarySegInfosVersion()
+                    )
+                );
+                receivedInfosLatch.countDown();
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                logger.error(
+                    () -> new ParameterizedMessage(
+                        "Failed to get primary shard {} segmentInfos version for replica {}",
+                        primaryShard.shardId(),
+                        replicaShard.shardId()
+                    ),
+                    e
+                );
+                receivedInfosLatch.countDown();
+            }
+        };
+
+        // Return the actual response, assuming it's a TransportResponse instance
+        transportClient.executeRetryableAction(
+            GET_PRIMARY_SEGINFOS_VERSION,
+            request,
+            options,
+            listener,
+            GetSegmentInfosVersionResponse::new
+        );
+
+        try {
+            // Wait for the latch to be decremented or timeout after a certain period
+            receivedInfosLatch.await(recoverySettings.internalActionTimeout().getMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Thread interrupted while waiting for response", e);
         }
-        long primaryReceivedVersion = receivedCheckpoint.getSegmentInfosVersion();
-        System.out.println("replica version:, primary version: " + replicaVersion + "\t:" + primaryReceivedVersion);
-        return replicaVersion == primaryReceivedVersion;
+        System.out.println("primary version finally " + primarySegmentInfosVersion[0]);
+        return replicaVersion == primarySegmentInfosVersion[0];
     }
 
 }

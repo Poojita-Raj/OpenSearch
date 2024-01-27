@@ -11,6 +11,8 @@ package org.opensearch.indices.replication;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.opensearch.action.admin.indices.shrink.GetSegmentInfosVersionRequest;
+import org.opensearch.action.admin.indices.shrink.GetSegmentInfosVersionResponse;
 import org.opensearch.action.support.ChannelActionListener;
 import org.opensearch.cluster.ClusterChangedEvent;
 import org.opensearch.cluster.ClusterStateListener;
@@ -65,6 +67,8 @@ public class SegmentReplicationSourceService extends AbstractLifecycleComponent 
         public static final String GET_CHECKPOINT_INFO = "internal:index/shard/replication/get_checkpoint_info";
         public static final String GET_SEGMENT_FILES = "internal:index/shard/replication/get_segment_files";
         public static final String UPDATE_VISIBLE_CHECKPOINT = "internal:index/shard/replication/update_visible_checkpoint";
+
+        public static final String GET_PRIMARY_SEGINFOS_VERSION = "internal:index/shard/replication/get_primary_seginfos_version";
     }
 
     private final OngoingSegmentReplications ongoingSegmentReplications;
@@ -96,6 +100,12 @@ public class SegmentReplicationSourceService extends AbstractLifecycleComponent 
             ThreadPool.Names.GENERIC,
             UpdateVisibleCheckpointRequest::new,
             new UpdateVisibleCheckpointRequestHandler()
+        );
+        transportService.registerRequestHandler(
+            Actions.GET_PRIMARY_SEGINFOS_VERSION,
+            ThreadPool.Names.GENERIC,
+            GetSegmentInfosVersionRequest::new,
+            new GetSegmentInfosVersionHandler()
         );
     }
 
@@ -162,6 +172,21 @@ public class SegmentReplicationSourceService extends AbstractLifecycleComponent 
                 channel.sendResponse(e);
             }
         }
+    }
+
+    private class GetSegmentInfosVersionHandler implements TransportRequestHandler<GetSegmentInfosVersionRequest> {
+
+        @Override
+        public void messageReceived(GetSegmentInfosVersionRequest request, TransportChannel channel, Task task) throws Exception {
+            try {
+                IndexService indexService = indicesService.indexServiceSafe(request.getPrimaryShardId().getIndex());
+                IndexShard primaryShard = indexService.getShard(request.getPrimaryShardId().id());
+                channel.sendResponse(new GetSegmentInfosVersionResponse(primaryShard.getSegmentInfosSnapshot().get().getVersion()));
+            } catch (Exception e) {
+                channel.sendResponse(e);
+            }
+        }
+
     }
 
     @Override
