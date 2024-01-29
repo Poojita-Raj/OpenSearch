@@ -3486,13 +3486,13 @@ public class IndexShardTests extends IndexShardTestCase {
             recoverShardFromStore(differentIndex);
             expectThrows(IllegalArgumentException.class, () -> {
                 final PlainActionFuture<Boolean> future = PlainActionFuture.newFuture();
-                targetShard.recoverFromLocalShards(mappingConsumer, Arrays.asList(sourceShard, differentIndex),future);
+                targetShard.recoverFromLocalShards(mappingConsumer, Arrays.asList(sourceShard, differentIndex), false, future);
                 future.actionGet();
             });
             closeShards(differentIndex);
 
             final PlainActionFuture<Boolean> future = PlainActionFuture.newFuture();
-            targetShard.recoverFromLocalShards(mappingConsumer, Arrays.asList(sourceShard), future);
+            targetShard.recoverFromLocalShards(mappingConsumer, Arrays.asList(sourceShard), false, future);
             assertTrue(future.actionGet());
             RecoveryState recoveryState = targetShard.recoveryState();
             assertEquals(RecoveryState.Stage.DONE, recoveryState.getStage());

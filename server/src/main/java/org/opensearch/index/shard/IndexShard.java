@@ -2717,6 +2717,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public void recoverFromLocalShards(
         Consumer<MappingMetadata> mappingUpdateConsumer,
         List<IndexShard> localShards,
+        boolean shrinkOperation,
         ActionListener<Boolean> listener
     ) throws IOException {
         logger.info("Recover from local shards");
@@ -2728,14 +2729,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         boolean success = false;
         try {
             for (IndexShard shard : localShards) {
-                if (shard.indexSettings.isSegRepEnabled()) {
-                    System.out.println("here1");
-                    if (shard.shardRouting.primary()) {
-                        System.out.println("here2");
-                        continue;
-                    }
+                if (shard.indexSettings.isSegRepEnabled() && shrinkOperation) {
                     System.out.println(shard.getSegmentInfosSnapshot().get().getVersion());
-                    if (segmentInfosVersionChecker.checkSegmentInfosVersionUpdated(shard) == false) {
+                    if (shard.shardRouting.primary() == false && segmentInfosVersionChecker.checkSegmentInfosVersionUpdated(shard) == false) {
                         System.out.println("here3");
                         throw new IllegalStateException(
                             "Source shard ["
@@ -3688,6 +3684,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                         l -> recoverFromLocalShards(
                             mappingUpdateConsumer,
                             startedShards.stream().filter((s) -> requiredShards.contains(s.shardId())).collect(Collectors.toList()),
+                            sourceIndexService.getMetadata().getNumberOfShards() > indexMetadata.getNumberOfShards(),
                             l
                         )
                     );
