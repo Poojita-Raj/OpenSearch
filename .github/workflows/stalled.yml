@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Stale PRs
-        uses: actions/stale@v8
+        uses: actions/stale@v9
         with:
           stale-pr-label: 'stalled'
           stale-pr-message: 'This PR is stalled because it has been open for 30 days with no activity.'
