@@ -24,7 +24,7 @@ jobs:
           echo "::set-output name=issue_labels::$labels"
 
       - name: Label PR with issue labels
-        uses: actions/github-script@v5
+        uses: actions/github-script@v9
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           script: |
